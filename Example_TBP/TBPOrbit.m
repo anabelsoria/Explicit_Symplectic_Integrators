@@ -59,7 +59,6 @@ classdef TBPOrbit
                     vx0 = 0; vy0 = sqrt((1+e)/(1-e)); vz0 = 0;
                     rvec = [x0;y0;z0]; vvec = [vx0;vy0;vz0];
                     S0 = [x0, y0, z0, vx0, vy0, vz0]';
-                    % oe = obj.DS.cartesian2keplerian(S0);
                     oe = astro.conics.cart2coe(S0,obj.mu,'MA');
                     Tp = 2*pi*sqrt(oe.sma^3/obj.mu); % [TU]
 
@@ -69,7 +68,7 @@ classdef TBPOrbit
                     vx0 = 0; vy0 = sqrt((1+e)/(1-e)); vz0 = 0;
                     rvec = [x0;y0;z0]; vvec = [vx0;vy0;vz0];
                     S0 = [x0, y0, z0, vx0, vy0, vz0]';
-                    oe = obj.DS.cartesian2keplerian(S0);
+                    oe = astro.conics.cart2coe(S0,obj.mu,'MA');
                     Tp = 2*pi*sqrt(oe.sma^3/obj.mu); % [TU]
 
                 otherwise
