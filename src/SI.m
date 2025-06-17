@@ -72,10 +72,10 @@ classdef SI
 
             tspan  = t0:dt:tf;
             nt = length(tspan);
-            ns = length(obj.prob.S0);
+            ns = length(obj.prob.xi0);
 
             X = zeros(ns, nt);
-            X(:,1) = obj.prob.S0_qp;
+            X(:,1) = obj.prob.nu0;
             q = X(1:3,1); p = X(4:6,1);
 
             for ii = 2:nt

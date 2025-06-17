@@ -12,48 +12,50 @@
 classdef CR3BPOrbit
     properties
         type    % Orbit type string
-        S0      % Initial state vector
+        center  % Origin coordinates
+        xi0     % Initial state vector
+        nu0     % Transformed initial conditions (optional)
         Tp      % Orbit period
         DS      % Dynamical system object (e.g. CR3BP)
-        S0_qp   % Transformed initial conditions (optional)
-        LU      % Characteristic length unit
-        TU      % Characteristic time unit
-        MU      % Mass parameter
     end
     
     methods
-        function obj = CR3BPOrbit(type)
+        function obj = CR3BPOrbit(type,center)
             % Constructor: initialize orbit parameters based on orbit type
             
             import astro.Constants;
             import astro.CR3BP;
             
             obj.type = type;
+            obj.center = center;
             
             % CR3BP characteristic properties (Earth-Moon system)
-            obj.LU = Constants.LU_EM;
-            obj.TU = Constants.TU_EM;
-            obj.MU = Constants.MU_EM;
+            LU = Constants.LU_EM;
+            TU = Constants.TU_EM;
+            mu = Constants.MU_EM;
             
             % Initialize CR3BP dynamical system object
-            obj.DS = CR3BP(obj.MU);
+            obj.DS = CR3BP(mu,obj.center);
             
             % Get initial conditions and period
-            [obj.S0, obj.Tp] = obj.IC_po(type);
+            [obj.xi0, obj.Tp] = obj.IC_po(type);
             
             % Transform initial conditions to canonical coordinates
-            obj.S0_qp = CR3BP.P_xi_nu * obj.S0;
+            obj.nu0 = CR3BP.P_xi_nu * obj.xi0;
+
+            % Switch center
+            [obj.xi0, obj.nu0] = obj.DS.shiftOrigin(obj.xi0, obj.nu0, center);
         end
         
-        function [S0, Tp] = IC_po(~, type)
+        function [xi0, Tp] = IC_po(~, type)
             % Returns initial state vector and orbital period for known orbits
             %
             % Inputs:
             %   type - Orbit type (string)
             %
             % Outputs:
-            %   S0 - Initial state vector [x; y; z; vx; vy; vz]
-            %   Tp - Orbital period
+            %   xi0 - Initial state vector [x; y; z; vx; vy; vz]
+            %   Tp  - Orbital period
 
             switch type
                 case 'DRO'
@@ -83,7 +85,7 @@ classdef CR3BPOrbit
                 otherwise
                     error('Unknown orbit type: %s', type);
             end
-            S0 = [x0, y0, z0, vx0, vy0, vz0]';
+            xi0 = [x0, y0, z0, vx0, vy0, vz0]';
         end
     end
 end

@@ -11,7 +11,10 @@
 %   schemes for propagation.
 classdef CR3BP < astro.DynamicalSystem
     properties
-        mu % Mass parameter (μ = m2 / (m1 + m2))
+        mu      % Mass parameter (μ = m2 / (m1 + m2))
+        center  % Origin coordinates
+        r1      % Position of larger primary
+        r2      % Position of secondary primary
     end
 
     properties (Constant)
@@ -28,9 +31,10 @@ classdef CR3BP < astro.DynamicalSystem
     end
 
     methods
-        function obj = CR3BP(mu)
+        function obj = CR3BP(mu,center)
             obj@astro.DynamicalSystem();
             obj.mu = mu;
+            obj.center = center;
         end
 
         function ds = EOM(obj, t, s)
@@ -44,11 +48,11 @@ classdef CR3BP < astro.DynamicalSystem
                 x = s(1); y = s(2);
                 xDot = s(3); yDot = s(4);
 
-                r1 = ((x + mu2)^2 + y^2)^1.5;
-                r2 = ((x - mu1)^2 + y^2)^1.5;
+                r13 = ((x - obj.r1)^2 + y^2)^1.5;
+                r23 = ((x - obj.r2)^2 + y^2)^1.5;
 
-                Ux = x - mu1 * (x + mu2) / r1 - mu2 * (x - mu1) / r2;
-                Uy = y - mu1 * y / r1 - mu2 * y / r2;
+                Ux = x - mu1 * (x - obj.r1) / r13 - mu2 * (x - obj.r2) / r23;
+                Uy = y - mu1 * y / r13 - mu2 * y / r23;
 
                 xDDot = 2 * yDot + Ux;
                 yDDot = -2 * xDot + Uy;
@@ -58,11 +62,11 @@ classdef CR3BP < astro.DynamicalSystem
                 x = s(1); y = s(2); z = s(3);
                 xDot = s(4); yDot = s(5); zDot = s(6);
 
-                r1 = (x + mu2)^2 + y^2 + z^2;
-                r2 = (x - mu1)^2 + y^2 + z^2;
+                r13 = (x + mu2)^2 + y^2 + z^2;
+                r23 = (x - mu1)^2 + y^2 + z^2;
 
-                r13 = r1^1.5;
-                r23 = r2^1.5;
+                r13 = r13^1.5;
+                r23 = r23^1.5;
 
                 Ux = x - mu1 * (x + mu2) / r13 - mu2 * (x - mu1) / r23;
                 Uy = y - mu1 * y / r13 - mu2 * y / r23;
@@ -80,20 +84,19 @@ classdef CR3BP < astro.DynamicalSystem
             x = s(1); y = s(2); z = s(3);
             px = s(4); py = s(5); pz = s(6);
 
-            x1 = -obj.mu; x2 = 1 - obj.mu;
-            GM1 = 1 - obj.mu;
-            GM2 = obj.mu;
+            mu1 = 1 - obj.mu;
+            mu2 = obj.mu;
 
-            R1 = sqrt((x - x1)^2 + y^2 + z^2);
-            R2 = sqrt((x - x2)^2 + y^2 + z^2);
+            r13 = sqrt((x - obj.r1)^2 + y^2 + z^2);
+            r23 = sqrt((x - obj.r2)^2 + y^2 + z^2);
 
-            Ux = GM1 * (x - x1) / R1^3 + GM2 * (x - x2) / R2^3;
-            Uy = GM1 * y / R1^3       + GM2 * y / R2^3;
-            Uz = GM1 * z / R1^3       + GM2 * z / R2^3;
+            Ux = mu1 * (x - obj.r1) / r13^3 + mu2 * (x - obj.r2) / r23^3;
+            Uy = mu1 * y / r13^3       + mu2 * y / r23^3;
+            Uz = mu1 * z / r13^3       + mu2 * z / r23^3;
 
             dh = zeros(6, 1);
             dh(1) = px + y;
-            dh(2) = py - x;
+            dh(2) = py - (x + (1 - obj.mu - obj.r2)); % Last part is zero when bary
             dh(3) = pz;
             dh(4) = -( -py + Ux );
             dh(5) = -(  px + Uy );
@@ -101,8 +104,7 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function dUdx = partialU(obj, q)
-            x1 = -obj.mu; x2 = 1 - obj.mu;
-            GM1 = 1 - obj.mu; GM2 = obj.mu;
+            mu1 = 1 - obj.mu; mu2 = obj.mu;
 
             x = q(1); y = q(2);
             z = 0;
@@ -110,12 +112,12 @@ classdef CR3BP < astro.DynamicalSystem
                 z = q(3);
             end
 
-            R1 = sqrt((x - x1)^2 + y^2 + z^2);
-            R2 = sqrt((x - x2)^2 + y^2 + z^2);
+            r13 = sqrt((x - obj.r1)^2 + y^2 + z^2);
+            r23 = sqrt((x - obj.r2)^2 + y^2 + z^2);
 
-            Ux = GM1 * (x - x1) / R1^3 + GM2 * (x - x2) / R2^3;
-            Uy = GM1 * y / R1^3 + GM2 * y / R2^3;
-            Uz = GM1 * z / R1^3 + GM2 * z / R2^3;
+            Ux = mu1 * (x - obj.r1) / r13^3 + mu2 * (x - obj.r2) / r23^3;
+            Uy = mu1 * y / r13^3 + mu2 * y / r23^3;
+            Uz = mu1 * z / r13^3 + mu2 * z / r23^3;
 
             dUdx = [Ux; Uy];
             if length(q) > 2
@@ -145,9 +147,9 @@ classdef CR3BP < astro.DynamicalSystem
                     p_n1 = D * p_n2 - dt2 * obj.partialU(q_n1);
 
                 case 2 % Stormer-Verlet B
-                    q_n2 = T * (q + dt2 * p);
+                    q_n2 = T * (q + dt2 * (p - [0; 1-obj.mu - obj.r2;0]));
                     p_n1 = T * (D * p - dt * obj.partialU(q_n2));
-                    q_n1 = D * q_n2 + dt2 * p_n1;
+                    q_n1 = D * q_n2 + dt2 * (p_n1 - [0; 1-obj.mu - obj.r2;0]);
             end
 
         end
@@ -161,25 +163,48 @@ classdef CR3BP < astro.DynamicalSystem
                 v = s(3:end,:);
             end
 
-            r1 = sqrt((x + obj.mu).^2 + y.^2 + z.^2);
-            r2 = sqrt((x - 1 + obj.mu).^2 + y.^2 + z.^2);
-            U  = (1 - obj.mu) ./ r1 + obj.mu ./ r2;
+            r13 = sqrt((x - obj.r1).^2 + y.^2 + z.^2);
+            r23 = sqrt((x - obj.r2).^2 + y.^2 + z.^2);
+            U  = (1 - obj.mu) ./ r13 + obj.mu ./ r23;
 
-            C = x.^2 + y.^2 + 2 * U - vecnorm(v).^2;
+            C = (x + (1 - obj.mu - obj.r2)).^2 + y.^2 + 2 * U - vecnorm(v).^2;
         end
 
-        function Hp = Hp(obj,s)
-            q1 = s(1);
-            q2 = s(2);
-            q3 = s(3);
-            p1 = s(4);
-            p2 = s(5);
-            p3 = s(6);
+        function [xi0, nu0] = shiftOrigin(obj, xi0, nu0, center)
+            switch lower(center)
+                case 'bary'
+                    obj.r1 = -obj.mu;
+                    obj.r2 = 1 - obj.mu;
+                case 'p2'
+                    xi0(1)    = xi0(1) - (1 - obj.mu);
+                    nu0(1) = nu0(1) - (1 - obj.mu);
 
-            t2 = p1+q2;
-            t3 = -p2;
-            t4 = obj.mu+q1+t3-1.0;
-            Hp = [abs(t2).*sign(t2),-abs(t4).*sign(t4),abs(p3).*sign(p3)];
+                    obj.r1 = -1;
+                    obj.r2 = 0;
+
+                case 'p1'
+                    xi0(1)    = xi0(1)    - (- obj.mu);
+                    nu0(1) = nu0(1) - (- obj.mu);
+
+                    obj.r1 = 0;
+                    obj.r2 = 1;
+                otherwise
+                    error('Unknown center option: %s', center);
+            end
         end
+
+        function xi = nu2xi(obj,nu)
+            switch obj.center
+                case 'bary'
+                    xi = obj.P_nu_xi * nu;
+                case 'p2'
+                    xi = obj.P_nu_xi * (nu + [1-obj.mu;0;0;0;0;0]);
+                    xi(1,:) = xi(1,:) - (1-obj.mu);
+                case 'p1'
+                    xi = obj.P_nu_xi * (nu + [-obj.mu;0;0;0;0;0]);
+                    xi(1,:) = xi(1,:) - (-obj.mu);
+            end
+        end
+
     end
 end

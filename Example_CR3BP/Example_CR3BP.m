@@ -19,13 +19,14 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 %% ====================== Data Setup ======================
 
-orbit_type = 'DRO';  % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N)
-p = CR3BPOrbit(orbit_type);
+orbit_type = 'NRHO_L2_S';  % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N)
+center     = 'bary';
+p = CR3BPOrbit(orbit_type, center);
 
-Nrevs = 10;          % Number of revolutions to propagate
+Nrevs = 1;          % Number of revolutions to propagate
 Nsteps = 1000;       % Number of time steps per revolution
 
-order  = 4;         % Integrators order
+order  = 6;         % Integrators order
 scheme = 2;         % Störmer-Verlet scheme 1 or 2
 
 %% ====================== Propagate Nrevs ======================
@@ -50,7 +51,7 @@ RK_obj = RK(p, order);
 
 % Propagate using RK integrator
 tic
-[X_RK, t_RK] = RK_obj.propagate(p.S0_qp, t0, tf, dt, ...
+[X_RK, t_RK] = RK_obj.propagate(p.nu0, t0, tf, dt, ...
                                 @(t, x) p.DS.Hamiltons_EOM(t, x));
 toc
 %% ======================== POST-PROCESSING =========================
@@ -66,11 +67,13 @@ labels3d('LU');
 % and plot the absolute difference from the initial value.
 
 % --- RK Integrator ---
-C_RK       = p.DS.jacobiconstant(p.DS.P_nu_xi * X_RK);        
+X_RK_cart = p.DS.nu2xi(X_RK);
+C_RK       = p.DS.jacobiconstant(X_RK_cart);        
 diff_C_RK  = abs(C_RK - C_RK(1));           % Deviation from initial value
 
 % --- Symplectic Integrator ---
-C_SI       = p.DS.jacobiconstant(p.DS.P_nu_xi * X_SI);        
+X_SI_cart = p.DS.nu2xi(X_SI);
+C_SI       = p.DS.jacobiconstant(X_SI_cart);        
 diff_C_SI  = abs(C_SI - C_SI(1));           % Deviation from initial value
 
 % --- Plotting the Drift ---
