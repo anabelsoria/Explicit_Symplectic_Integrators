@@ -8,11 +8,16 @@
 %  dynamical system.
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-%   schemes for propagation.
 classdef CR3BP < astro.DynamicalSystem
+    
+    % These properties will be set by the user
+    properties 
+        center  string % Origin coordinates
+    end
+
+    % These properties are internally set by the class
     properties
         mu      % Mass parameter (μ = m2 / (m1 + m2))
-        center  % Origin coordinates
         r1      % Position of larger primary
         r2      % Position of secondary primary
     end
@@ -154,7 +159,11 @@ classdef CR3BP < astro.DynamicalSystem
 
         end
 
-        function C = jacobiconstant(obj, s)
+        function C = jacobiconstant(obj, sol)
+            s = sol.x;
+            if strcmp(sol.coord,'hamiltonian')
+                s = obj.nu2xi(s);
+            end
             if size(s,1) > 4
                 x = s(1,:); y = s(2,:); z = s(3,:);
                 v = s(4:end,:);

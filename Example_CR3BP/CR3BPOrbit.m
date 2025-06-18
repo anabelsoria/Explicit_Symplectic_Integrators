@@ -14,9 +14,9 @@ classdef CR3BPOrbit
         type    % Orbit type string
         center  % Origin coordinates
         xi0     % Initial state vector
-        nu0     % Transformed initial conditions (optional)
+        nu0     % Transformed initial conditions 
         Tp      % Orbit period
-        DS      % Dynamical system object (e.g. CR3BP)
+        DS      % Dynamical system object (i.e. CR3BP)
     end
     
     methods

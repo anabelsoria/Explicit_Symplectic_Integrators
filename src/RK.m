@@ -8,9 +8,10 @@
 %  Hamiltonian systems.
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-classdef RK
+classdef RK < Integrator
 
     properties
+        name = 'RK'
         prob      % Problem class containing parameters, initial conditions, etc.
         order     % Order of Runge-Kutta method 
         stepFun   % Function handle to specific RK method
@@ -24,7 +25,7 @@ classdef RK
             obj.stepFun = RK.selectStepFunction(order);
         end
 
-        function [X, tspan] = propagate(obj, S0, t0, tf, dt, f)
+        function varargout = propagate(obj, S0, t0, tf, dt, f)
             % Propagate the system using the selected RK method
             %
             % Inputs:
@@ -48,6 +49,16 @@ classdef RK
             for i = 2:nt
                 X(:, i) = obj.stepFun(dt, tspan(i-1), X(:, i-1), f);
             end
+
+            obj.sol.x = X;
+            obj.sol.t = tspan;
+            obj.sol.coord = 'hamiltonian'; % Modify later to option cart
+
+            if nargout > 0
+                varargout{1} = X;
+                varargout{2} = tspan;
+            end
+
         end
     end
 
