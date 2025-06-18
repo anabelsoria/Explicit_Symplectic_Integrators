@@ -7,7 +7,7 @@ This repository implements a modular framework for symplectic integration of dyn
 The codebase is organized using MATLAB classes for flexibility and extensibility, and includes examples of orbit propagation and visualization. This framework serves as a foundation for exploring more complex systems, such as the Elliptic Restricted Three-Body Problem (ER3BP), and supports future development of additional features and orbit types.
 
 <p align="center">
-    <img src = "./Example_CR3BP/traj_dC.gif" width=50%>
+    <img src = "./Example_CR3BP/traj_dC.gif" width=80%>
 </p>
 
 ## Necessary Software
