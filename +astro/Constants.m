@@ -19,6 +19,7 @@ classdef Constants
         LU_EM = 389703; % [km]
         TU_EM = 382981; % [s]
         MU_EM = 1.215058560962404E-2;
+        e_EM  = 0.0554;
     end
 
     methods (Static)

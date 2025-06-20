@@ -12,6 +12,8 @@ classdef DynamicalSystem < dynamicprops
     properties
         odeopts struct = odeset('RelTol', 1e-13, 'AbsTol', 1e-13);
         integrator function_handle = @ode78;
+
+        mu % Mass parameter 
     end
 
     methods 
@@ -45,6 +47,28 @@ classdef DynamicalSystem < dynamicprops
             dydt = [obj.EOM(t, x); reshape(A*STM, [], 1)];
         end
         
+        function [xi0, nu0] = shiftOrigin(obj, xi0, nu0, center)
+            switch lower(center)
+                case 'bary'
+                    obj.r1 = -obj.mu;
+                    obj.r2 = 1 - obj.mu;
+                case 'p2'
+                    xi0(1) = xi0(1) - (1 - obj.mu);
+                    nu0(1) = nu0(1) - (1 - obj.mu);
+
+                    obj.r1 = -1;
+                    obj.r2 = 0;
+
+                case 'p1'
+                    xi0(1) = xi0(1)    - (- obj.mu);
+                    nu0(1) = nu0(1) - (- obj.mu);
+
+                    obj.r1 = 0;
+                    obj.r2 = 1;
+                otherwise
+                    error('Unknown center option: %s', center);
+            end
+        end
 
     end
 

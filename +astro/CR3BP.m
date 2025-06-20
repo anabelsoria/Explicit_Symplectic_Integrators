@@ -17,7 +17,6 @@ classdef CR3BP < astro.DynamicalSystem
 
     % These properties are internally set by the class
     properties
-        mu      % Mass parameter (μ = m2 / (m1 + m2))
         r1      % Position of larger primary
         r2      % Position of secondary primary
     end
@@ -178,30 +177,7 @@ classdef CR3BP < astro.DynamicalSystem
 
             C = (x + (1 - obj.mu - obj.r2)).^2 + y.^2 + 2 * U - vecnorm(v).^2;
         end
-
-        function [xi0, nu0] = shiftOrigin(obj, xi0, nu0, center)
-            switch lower(center)
-                case 'bary'
-                    obj.r1 = -obj.mu;
-                    obj.r2 = 1 - obj.mu;
-                case 'p2'
-                    xi0(1)    = xi0(1) - (1 - obj.mu);
-                    nu0(1) = nu0(1) - (1 - obj.mu);
-
-                    obj.r1 = -1;
-                    obj.r2 = 0;
-
-                case 'p1'
-                    xi0(1)    = xi0(1)    - (- obj.mu);
-                    nu0(1) = nu0(1) - (- obj.mu);
-
-                    obj.r1 = 0;
-                    obj.r2 = 1;
-                otherwise
-                    error('Unknown center option: %s', center);
-            end
-        end
-
+       
         function xi = nu2xi(obj,nu)
             switch obj.center
                 case 'bary'
