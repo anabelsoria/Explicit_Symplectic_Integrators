@@ -49,35 +49,18 @@ dt = p.Tp / Nsteps;          % Step size
 RK_obj = RK(p, order);
 
 % Propagate using RK integrator
-[X_RK, t_RK] = RK_obj.propagate(p.S0_qp, t0, tf, dt, ...
+[X_RK, t_RK] = RK_obj.propagate(p.nu0, t0, tf, dt, ...
                                 @(t, x) p.DS.EOM(t, x));
 
 %% ======================== POST-PROCESSING =========================
 
 % ------------------------ Plot Orbits -----------------------------
-figure; hold on; grid on; axis equal;
-plot3(X_SI(1,:), X_SI(2,:), X_SI(3,:), LineWidth=2); 
-plot3(X_RK(1,:), X_RK(2,:), X_RK(3,:), LineWidth=2); 
-labels3d('LU');
+SI_obj.plot_traj(plot_2d_xy=true)                           
+RK_obj.plot_traj(fig = gcf,plot_2d_xy=true)
 
 % ------------------- Plot Energy Drift -------------------
-% Compute the Jacobi constant over time for both integrators
+% Compute the energy over time for both integrators
 % and plot the absolute difference from the initial value.
 
-% --- RK Integrator ---
-E_RK       = p.DS.total_energy(X_RK);        
-diff_E_RK  = abs(E_RK - E_RK(1));           % Deviation from initial value
-
-% --- Symplectic Integrator ---
-E_SI       = p.DS.total_energy(X_SI);          
-diff_E_SI  = abs(E_SI - E_SI(1));           % Deviation from initial value
-
-% --- Plotting the Drift ---
-figure; hold on;
-plot(t_SI/p.Tp, diff_E_SI, LineWidth=2, DisplayName='SI');    
-plot(t_RK/p.Tp, diff_E_RK, LineWidth=2, DisplayName='RK');    
-grid on;
-xlabel('Revolutions', 'Interpreter', 'latex');                
-ylabel('$|E - E_0|$', 'Interpreter', 'latex');                
-set(gca, 'yscale', 'log');                                    
-legend('Interpreter', 'latex', 'Location','best');                               
+SI_obj.plot_conserved_quantity(quantity='energy')
+RK_obj.plot_conserved_quantity(fig = gcf,quantity='energy')                               

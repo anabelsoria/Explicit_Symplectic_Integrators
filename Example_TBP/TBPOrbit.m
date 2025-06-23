@@ -11,13 +11,12 @@
 
 classdef TBPOrbit
     properties
-        S0      % Initial state vector
-        S0_qp
+        xi0     % Cartesian initial conditions
+        nu0     % Hamiltonian initial conditions 
         Tp      % Orbit period
         DS      % Dynamical system object (e.g. CR3BP)
         oe
         body      % Body properties
-        mu
     end
 
     methods
@@ -30,15 +29,15 @@ classdef TBPOrbit
             obj.body = Constants.getBodyConstants(body);
 
             % TBP characteristic properties
-            obj.mu = 1;
+            mu = 1;
 
             % Initialize TBP dynamical system object
-            obj.DS = TwoBody(obj.mu);
+            obj.DS = TwoBody(mu);
 
             % Get initial conditions and period
-            [obj.S0, obj.oe, obj.Tp] = obj.IC_po(type);
+            [obj.xi0, obj.oe, obj.Tp] = obj.IC_po(type);
 
-            obj.S0_qp = obj.S0;
+            obj.nu0 = obj.xi0;
 
         end
 
@@ -59,8 +58,8 @@ classdef TBPOrbit
                     vx0 = 0; vy0 = sqrt((1+e)/(1-e)); vz0 = 0;
                     rvec = [x0;y0;z0]; vvec = [vx0;vy0;vz0];
                     S0 = [x0, y0, z0, vx0, vy0, vz0]';
-                    oe = astro.conics.cart2coe(S0,obj.mu,'MA');
-                    Tp = 2*pi*sqrt(oe.sma^3/obj.mu); % [TU]
+                    oe = astro.conics.cart2coe(S0,obj.DS.mu,'MA');
+                    Tp = 2*pi*sqrt(oe.sma^3/obj.DS.mu); % [TU]
 
                 case 2 % Planar Orbit, ecc = 0.7
                     e = 0.7;
@@ -68,8 +67,8 @@ classdef TBPOrbit
                     vx0 = 0; vy0 = sqrt((1+e)/(1-e)); vz0 = 0;
                     rvec = [x0;y0;z0]; vvec = [vx0;vy0;vz0];
                     S0 = [x0, y0, z0, vx0, vy0, vz0]';
-                    oe = astro.conics.cart2coe(S0,obj.mu,'MA');
-                    Tp = 2*pi*sqrt(oe.sma^3/obj.mu); % [TU]
+                    oe = astro.conics.cart2coe(S0,obj.DS.mu,'MA');
+                    Tp = 2*pi*sqrt(oe.sma^3/obj.DS.mu); % [TU]
 
                 otherwise
                     error('Unknown orbit type: %s', type);

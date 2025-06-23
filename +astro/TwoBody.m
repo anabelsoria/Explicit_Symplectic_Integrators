@@ -9,7 +9,7 @@
 
 classdef TwoBody < astro.DynamicalSystem
     properties
-        mu % Gravitational parameter
+        %mu % Gravitational parameter
     end
 
     methods
