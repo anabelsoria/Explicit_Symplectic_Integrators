@@ -14,19 +14,22 @@ classdef DynamicalSystem < dynamicprops
         integrator function_handle = @ode78;
 
         mu % Mass parameter 
+        LU % characteristic length
+        TU % characteristic time
     end
 
     methods 
 
-        function varargout = propagate(obj, x0, tspan, odeopts)
+        function varargout = propagate(obj, x0, tspan, odeopts, fun)
             arguments
                 obj
                 x0 
                 tspan
                 odeopts = obj.odeopts
+                fun     = @obj.EOM
             end
 
-            [varargout{1:nargout}] = obj.integrator(@obj.EOM, tspan, x0, odeopts);
+            [varargout{1:nargout}] = obj.integrator(fun, tspan, x0, odeopts);
         end
 
         function varargout = propagate_with_STM(obj, x0, tspan, odeopts)

@@ -66,13 +66,13 @@ classdef CR3BP < astro.DynamicalSystem
                 x = s(1); y = s(2); z = s(3);
                 xDot = s(4); yDot = s(5); zDot = s(6);
 
-                r13 = (x + mu2)^2 + y^2 + z^2;
-                r23 = (x - mu1)^2 + y^2 + z^2;
+                r13 = (x - obj.r1)^2 + y^2 + z^2;
+                r23 = (x - obj.r2)^2 + y^2 + z^2;
 
                 r13 = r13^1.5;
                 r23 = r23^1.5;
 
-                Ux = x - mu1 * (x + mu2) / r13 - mu2 * (x - mu1) / r23;
+                Ux = x - mu1 * (x - obj.r1) / r13 - mu2 * (x - obj.r2) / r23;
                 Uy = y - mu1 * y / r13 - mu2 * y / r23;
                 Uz = -mu1 * z / r13 - mu2 * z / r23;
 

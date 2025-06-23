@@ -11,8 +11,6 @@
 classdef RK < Integrator
 
     properties
-        name = 'RK'
-        prob      % Problem class containing parameters, initial conditions, etc.
         order     % Order of Runge-Kutta method 
         stepFun   % Function handle to specific RK method
     end
@@ -20,6 +18,7 @@ classdef RK < Integrator
     methods
         function obj = RK(prob, order)
             % Constructor for the RK class
+            obj.name = 'RK';
             obj.prob  = prob;
             obj.order = order;
             obj.stepFun = RK.selectStepFunction(order);

@@ -11,8 +11,6 @@
 classdef SI < Integrator
 
     properties
-        name = 'SI'
-        prob    % Problem definition object (contains initial conditions, dynamics, etc.)
         order   % Order of the symplectic integrator (e.g., 2, 3, or 4)
         scheme  % Scheme selector for equations of motion
         gamma   % Gamma coefficients specific to the chosen integrator order
@@ -22,6 +20,7 @@ classdef SI < Integrator
 
         function obj = SI(prob,order,scheme)
             % Constructor for the SI class
+            obj.name = 'SI';
             obj.prob     = prob;
             obj.order = order;
             obj.scheme = scheme;

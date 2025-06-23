@@ -13,8 +13,8 @@ classdef ER3BPOrbit
     properties
         type    % Orbit type string
         center  % Origin coordinates
-        xi0     % Initial state vector
-        nu0     % Transformed initial conditions 
+        xi0     % Cartesian initial conditions
+        nu0     % Hamiltonian initial conditions  
         Tp      % Orbit period
         DS      % Dynamical system object (i.e. ER3BP)
     end

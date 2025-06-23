@@ -1,10 +1,24 @@
     classdef Integrator < handle
     
         properties
+            name
+            prob      % Problem class containing parameters, initial conditions, etc.
             sol % Propagated solution (trajectory and tspan)
         end
     
         methods
+
+            function obj = Integrator(prob,name, sol)
+                arguments
+                    prob = []
+                    name = 'NaN'
+                    sol  = []
+                end
+            % Constructor for the RK class
+            obj.name = name;
+            obj.prob = prob;
+            obj.sol  = sol;
+        end
     
             function plot_traj(obj,options)
                 arguments
@@ -18,7 +32,9 @@
     
                 if isempty(options.fig)
                     figure;
+                    if isfield(obj.prob.DS,'r2')
                     scatter3(obj.prob.DS.r2,0,0,15,'k','filled',DisplayName='Moon')
+                    end
                 else
                     figure(options.fig);
                 end
@@ -134,10 +150,16 @@
                         label = '$|C - C_0|$';
                     case 'energy'
                         if ~isfield(obj.sol, 'E')
-                            obj.sol.E = obj.prob.DS.energy(obj.sol.x);
+                            obj.sol.E = obj.prob.DS.total_energy(obj.sol.x);
                         end
                         val = obj.sol.E;
                         label = '$|E - E_0|$';
+                    case 'hamiltonian'
+                        if ~isfield(obj.sol, 'H')
+                            obj.sol.H = obj.prob.DS.hamiltonian(obj.sol.x);
+                        end
+                        val = obj.sol.H;
+                        label = '$|H - H_0|$';
                     case {'kamiltonian', 'kamilt'}
                         if ~isfield(obj.sol, 'K')
                             obj.sol.K = obj.prob.DS.kamiltonian(obj.sol.x);

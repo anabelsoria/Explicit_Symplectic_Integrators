@@ -14,6 +14,9 @@ classdef Constants
         % ------------------- Astronomical Unit
         AU = 1.49597870700E+8; % [km]
 
+        % ------------------- Gravitational constant
+        G = 6.673 * 1e-2;      % [km3 / kg s2]
+
         % ------------------- CR3BP Characteristic Properties: 
         % Earth-Moon System
         LU_EM = 389703; % [km]
@@ -35,6 +38,7 @@ classdef Constants
                 case 'sun'
                     body.name = 'Sun';
                     body.radius_km = 696000.0;
+                    body.m         = 1.9884e30;  
                     body.mu_km3ps2 = 132712440041.9394;
 
                 case 'mercury'
@@ -50,11 +54,13 @@ classdef Constants
                 case 'earth'
                     body.name = 'Earth';
                     body.radius_km = 6378.1366;
+                    body.m         = 5.9724E24;
                     body.mu_km3ps2 = 398600.435507;
 
                 case 'moon'
                     body.name = 'Moon';
                     body.radius_km = 1737.4;
+                    body.m         = 7.346E22;
                     body.mu_km3ps2 = 4902.800118;
 
                 case 'mars'
