@@ -45,10 +45,12 @@ classdef RK < Integrator
             X = zeros(ns, nt);
             X(:, 1) = S0;
 
+            tic
             for i = 2:nt
                 X(:, i) = obj.stepFun(dt, tspan(i-1), X(:, i-1), f);
             end
-
+            obj.time_solver = toc;
+            
             obj.sol.x = X;
             obj.sol.t = tspan;
             obj.sol.coord = 'hamiltonian'; % Modify later to option cart

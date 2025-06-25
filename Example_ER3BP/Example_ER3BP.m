@@ -40,12 +40,7 @@ tf = Nrevs * p.Tp;           % Final time = Nrevs full orbital periods
 dt = p.Tp / Nsteps;          % Step size
 
 % Propagate using symplectic integrator
-tic
 SI_obj.propagate(t0, tf, dt);
-toc
-X_SI = SI_obj.sol.x; t_SI = SI_obj.sol.t;
-K_SI = SI_obj.prob.DS.kamiltonian(X_SI);
-
 SI_obj.plot_traj_with_drift(title="SI" + num2str(order),font_size = 14,quantity='kamiltonian')
 
 % ------------------------ RUNGE-KUTTA ------------------------
@@ -53,13 +48,8 @@ SI_obj.plot_traj_with_drift(title="SI" + num2str(order),font_size = 14,quantity=
 RK_obj = RK(p, order);
 
 % Propagate using RK integrator
-tic
 RK_obj.propagate(p.nu0, t0, tf, dt, ...
                                 @(t, x) p.DS.Hamiltons_EOM(t, x));
-toc
-X_RK = RK_obj.sol.x; t_RK = RK_obj.sol.t;
-K_RK = SI_obj.prob.DS.kamiltonian(X_RK);
-
 RK_obj.plot_traj_with_drift(title="RK" + num2str(order),font_size = 14,quantity='kamiltonian')
 
 %% ======================== POST-PROCESSING =========================

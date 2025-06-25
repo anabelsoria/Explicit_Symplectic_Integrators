@@ -88,6 +88,7 @@ classdef BCR4BPOrbit < handle
                     vy0 = -0.234896886697873;
                     vz0 = -0.076421195994642;
                     obj.theta_0 = -0.7854;
+                    obj.DS.theta_0 = obj.theta_0;
                     
                     % Orbital resonance (M:N)
                     M   = 3; % Orbit revs
@@ -107,7 +108,7 @@ classdef BCR4BPOrbit < handle
                     vy0 = -0.081252704013115;
                     vz0 = -0.118918741044589;
                     obj.theta_0 = 0.1904;
-                    obj.DS.theta_0 = 0.1904;
+                    obj.DS.theta_0 = obj.theta_0;
 
                     % Orbital resonance (M:N)
                     M   = 9; % Earth-Moons revs

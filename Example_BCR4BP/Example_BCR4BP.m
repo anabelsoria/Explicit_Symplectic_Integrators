@@ -18,14 +18,14 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 %% ====================== Data Setup ======================
 
-orbit_type = 'NRHO_9_2';  % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N)
+orbit_type = 'NRHO_3_1';  % Specify orbit type (NRHO_3_1, NRHO_9_2)
 center     = 'bary';
 p = BCR4BPOrbit(orbit_type, center);
 
 Nrevs = 1;          % Number of revolutions to propagate
 Nsteps = 10000;
 
-order = 2;
+order = 4;
 scheme = 2;
 %% ====================== Propagate Nrevs ======================
 
@@ -37,42 +37,37 @@ dt = p.Tp / Nsteps;          % Step size
 % -------------------- ODE --------------------
 opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); %odeset('RelTol', 1e-16, 'AbsTol', 1e-30);
 p.DS.integrator = @ode45;
+ODE_obj = Integrator(p,'RKF45');
 tic
 sol_ode = p.DS.propagate(p.nu0,[t0 tf],opts,@(t,x)p.DS.Hamiltons_EOM(t,x));
-toc
+ODE_obj.time_solver = toc;
 sol_ode.t = sol_ode.x;
 sol_ode.x = sol_ode.y;
 sol_ode = rmfield(sol_ode,'y');
 sol_ode.nsteps = round(length(sol_ode.t)/Nrevs);
-ODE_obj = Integrator(p,'RKF45', sol_ode);
+ODE_obj.sol = sol_ode;
 
 % -------------------- SYMPLECTIC INTEGRATOR --------------------
 % Create instance of the symplectic integrator class
 SI_obj = SI(p, order, scheme);  
 
 % Propagate using symplectic integrator
-tic
 SI_obj.propagate(t0, tf, dt);
-toc
-X_SI = SI_obj.sol.x; t_SI = SI_obj.sol.t;
 
 % ------------------------ RUNGE-KUTTA ------------------------
 % Create instance of the Runge-Kutta integrator class
 RK_obj = RK(p, order);
 
 % Propagate using RK integrator
-tic
 RK_obj.propagate(p.nu0, t0, tf, dt, ...
                                 @(t, x) p.DS.Hamiltons_EOM(t, x));
-toc
-X_RK = RK_obj.sol.x; t_RK = RK_obj.sol.t;
 
 %% ======================== POST-PROCESSING =========================
 
 % ------------------------ Plot Orbits -----------------------------
-ODE_obj.plot_traj(plot_2d_xy=true)                           
-SI_obj.plot_traj(fig = gcf,plot_2d_xy=true)                           
-RK_obj.plot_traj(fig = gcf,plot_2d_xy=true)
+ODE_obj.plot_traj(plot_2d_xy=false)                           
+SI_obj.plot_traj(fig = gcf,plot_2d_xy=false)                           
+RK_obj.plot_traj(fig = gcf,plot_2d_xy=false)
 
 % ------------------- Plot Jacobi Constant Drift -------------------
 % Plot the absolute Jacobi Constant difference from the initial value.

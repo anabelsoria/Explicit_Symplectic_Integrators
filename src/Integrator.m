@@ -1,9 +1,10 @@
     classdef Integrator < handle
     
         properties
-            name
-            prob      % Problem class containing parameters, initial conditions, etc.
-            sol % Propagated solution (trajectory and tspan)
+            name % Name of the integrator
+            prob % Problem class containing parameters, initial conditions, etc.
+            sol  % Propagated solution (trajectory and tspan)
+            time_solver = NaN % Time taken by integrator
         end
     
         methods

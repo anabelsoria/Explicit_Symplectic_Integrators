@@ -79,6 +79,7 @@ classdef SI < Integrator
             X(:,1) = obj.prob.nu0;
             q = X(1:nq,1); p = X(nq+1:end,1);
 
+            tic
             for ii = 2:nt
                 for jj = 1:length(obj.gamma)
                     [q,p] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p]);
@@ -86,6 +87,7 @@ classdef SI < Integrator
                 X(1:nq,ii) = q;
                 X(nq+1:end,ii) = p;
             end
+            obj.time_solver = toc;
 
             obj.sol.x = X;
             obj.sol.t = tspan;
