@@ -121,6 +121,7 @@
                 subplot(1,2,1)
                 scatter(t_plot/obj.prob.Tp,dVal_plot,5,dVal_plot,'filled')
                 set(gca,'yscale','log'); grid on;
+                set(gca, 'ColorScale', 'log');
                 xlabel('Revolutions','Interpreter','latex')
                 ylabel(label,'Interpreter','latex')
     
@@ -130,7 +131,8 @@
                 str = 'Moon'; text(obj.prob.DS.r2,-0.1,str)
                 colormap(options.colormap)
                 cb = colorbar;
-                clim([min(dVal_plot) max(dVal_plot)])
+                set(gca, 'ColorScale', 'log');
+                % clim([min(dVal_plot) max(dVal_plot)])
                 ylabel(cb,label,'Rotation',270,'Interpreter','latex')
                 axis equal; view(2); labels3d('LU')
     

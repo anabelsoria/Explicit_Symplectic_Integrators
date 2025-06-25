@@ -62,7 +62,7 @@ classdef ER3BPOrbit
             %   Tp  - Orbital period
 
             switch type
-                case 'DRO'
+                case 'DRO_1_1'
                     x0  = 0.138804934901161;
                     y0  = 0;
                     z0  = 0;
@@ -70,8 +70,52 @@ classdef ER3BPOrbit
                     vy0 = 3.24515236755642;
                     vz0 = 0;
                     % Orbital resonance (M:N)
-                    M   = 1; % Earths revs
-                    N   = 1; % Moons revs
+                    M   = 1; % Orbit revs
+                    N   = 1; % Primaries revs
+                    Tp  = 2*pi*N;
+                case 'DRO_3_2'
+                    x0  = 0.744738588535288;
+                    y0  = 0;
+                    z0  = 0;
+                    vx0 = 0;
+                    vy0 = 0.600143162130891;
+                    vz0 = 0;
+                    % Orbital resonance (M:N)
+                    M   = 3; % Orbit revs
+                    N   = 2; % Primaries revs
+                    Tp  = 2*pi*N;
+                case 'DRO_5_2'
+                    x0  = 0.830003941607134;
+                    y0  = 0;
+                    z0  = 0;
+                    vx0 = 0;
+                    vy0 = 0.483496169760793;
+                    vz0 = 0;
+                    % Orbital resonance (M:N)
+                    M   = 5; % Orbit revs
+                    N   = 2; % Primaries revs
+                    Tp  = 2*pi*N;
+                case 'Halo_L2_2_1'
+                    x0  = 1.14521893547366;
+                    y0  = 0;
+                    z0  = -0.160895069179558;
+                    vx0 = 0;
+                    vy0 = -0.220898747857751;
+                    vz0 = 0;
+                    % Orbital resonance (M:N)
+                    M   = 2; % Orbit revs
+                    N   = 1; % Primaries revs
+                    Tp  = 2*pi*N;
+                case 'Halo_L2_3_1'
+                    x0  = 1.06370588609306;
+                    y0  = 0;
+                    z0  = -0.212556037429961;
+                    vx0 = 0;
+                    vy0 = -0.163003551068639;
+                    vz0 = 0;
+                    % Orbital resonance (M:N)
+                    M   = 3; % Orbit revs
+                    N   = 1; % Primaries revs
                     Tp  = 2*pi*N;
 
                 otherwise

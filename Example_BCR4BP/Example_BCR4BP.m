@@ -43,6 +43,7 @@ toc
 sol_ode.t = sol_ode.x;
 sol_ode.x = sol_ode.y;
 sol_ode = rmfield(sol_ode,'y');
+sol_ode.nsteps = round(length(sol_ode.t)/Nrevs);
 ODE_obj = Integrator(p,'RKF45', sol_ode);
 
 % -------------------- SYMPLECTIC INTEGRATOR --------------------

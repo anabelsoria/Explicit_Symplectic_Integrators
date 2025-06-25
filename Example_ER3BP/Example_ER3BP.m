@@ -18,7 +18,7 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 %% ====================== Data Setup ======================
 
-orbit_type = 'DRO';  % Specify orbit type (DRO)
+orbit_type = 'DRO_5_2';  % Specify orbit type (DRO_1_1, DRO_3_2, DRO_5_2, Halo_L2_2_1, Halo_L2_3_1)
 center     = 'bary';
 p = ER3BPOrbit(orbit_type, center);
 

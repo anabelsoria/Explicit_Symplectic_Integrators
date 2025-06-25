@@ -90,8 +90,8 @@ classdef BCR4BPOrbit < handle
                     obj.theta_0 = -0.7854;
                     
                     % Orbital resonance (M:N)
-                    M   = 3; % Earth-Moons revs
-                    N   = 1; % Sun-B1 revs
+                    M   = 3; % Orbit revs
+                    N   = 1; % Primaries revs
                     Tp_3bp = 2.2635;
                     Tp  = M*Tp_3bp;
 
