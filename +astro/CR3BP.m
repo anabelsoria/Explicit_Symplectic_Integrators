@@ -129,6 +129,17 @@ classdef CR3BP < astro.DynamicalSystem
             end
         end
 
+        function Hp = Hp(obj,s)
+            q1 = s(1);
+            q2 = s(2);
+            q3 = s(3);
+            p1 = s(4);
+            p2 = s(5);
+            p3 = s(6);
+
+            Hp = [p1+q2,obj.mu+p2-q1-1.0,p3]';
+        end
+
         function [q_n1, p_n1] = SI_EOM(obj, dt, scheme, X)
             q = X(1:3);
             p = X(4:6);

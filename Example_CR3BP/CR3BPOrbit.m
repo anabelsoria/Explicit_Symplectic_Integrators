@@ -17,10 +17,11 @@ classdef CR3BPOrbit
         nu0     % Hamiltonian initial conditions 
         Tp      % Orbit period
         DS      % Dynamical system object (i.e. CR3BP)
+        Nrevs 
     end
     
     methods
-        function obj = CR3BPOrbit(type,center)
+        function obj = CR3BPOrbit(type,center, Nrevs)
             % Constructor: initialize orbit parameters based on orbit type
             
             import astro.Constants;
@@ -28,6 +29,8 @@ classdef CR3BPOrbit
             
             obj.type = type;
             obj.center = center;
+
+            obj.Nrevs = Nrevs;
             
             % CR3BP characteristic properties (Earth-Moon system)
             LU = Constants.LU_EM;
@@ -82,6 +85,23 @@ classdef CR3BPOrbit
                     vy0 = 2.3055753889250671E-1	;
                     vz0 = 1.0601974505638561E-13;
                     Tp = 2.1764730139006754E+0;
+                case 'Lyapunov_L2'
+                    x0  = 1.0409170186395991E+0;
+                    y0  = 1.7757680306584765E-28;
+                    z0  = -3.4067699730951515E-34;
+                    vx0 = -1.0883595016703621E-14;
+                    vy0 = 6.1817200388238525E-1;
+                    vz0 = 1.0802087787446329E-31;
+                    Tp = 4.0337059603519307E+0;
+                case 'DPO'
+                    x0  = 1.0531750564014404E+0;					
+                	y0  = 2.5291155145866132E-28;
+                	z0  = -3.1623553102004274E-37;
+                	vx0 = -1.0447937473643556E-14;
+                	vy0 = 4.7843998289989925E-1;
+                	vz0 = -8.6707970284661460E-35;
+                    Tp  = 3.0919825950375275E+0;
+                    stab = 1.0210083248354400E+2;
                 otherwise
                     error('Unknown orbit type: %s', type);
             end
