@@ -18,14 +18,16 @@ classdef BCR4BPOrbit < handle
         theta_0 % Initial Sun-B1 angle
         Tp      % Orbit period
         DS      % Dynamical system object (i.e. BCR4BP)
+        Nrevs
     end
     
     methods
-        function obj = BCR4BPOrbit(type,center,theta_0)
+        function obj = BCR4BPOrbit(type,center,theta_0, Nrevs)
             arguments
                 type
                 center 
                 theta_0 = 0
+                Nrevs = 1
             end
 
             % Constructor: initialize orbit parameters based on orbit type
@@ -35,6 +37,7 @@ classdef BCR4BPOrbit < handle
             
             obj.type = type;
             obj.center = center;
+            obj.Nrevs = Nrevs;
             
             % Bodies 
             moon  = Constants.getBodyConstants('moon');
