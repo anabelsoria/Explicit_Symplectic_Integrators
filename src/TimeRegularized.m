@@ -106,7 +106,7 @@ classdef TimeRegularized < Integrator
 
             X = zeros(ns, nt);
             X(1:ns, 1) = obj.integrator.prob.nu0;
-            X(end, 1) = t0;
+            X(ns+1, 1) = t0;
 
             i = 1;
             t = t0;

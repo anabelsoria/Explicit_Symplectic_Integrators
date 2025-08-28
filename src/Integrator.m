@@ -51,14 +51,20 @@
                     name_plot = obj.name;
                 end
 
-                if isempty(options.color)
-                    plot3(obj.sol.x(1,:),obj.sol.x(2,:),obj.sol.x(3,:), ...
-                        LineWidth=1,DisplayName=name_plot)
+                num_revs = round(obj.sol.t/obj.prob.Tp);
+                
+                if num_revs < obj.prob.Nrevs + 10
+                    if isempty(options.color)
+                        plot3(obj.sol.x(1,:),obj.sol.x(2,:),obj.sol.x(3,:), ...
+                            LineWidth=1,DisplayName=name_plot)
 
+                    else
+                        plot3(obj.sol.x(1,:),obj.sol.x(2,:),obj.sol.x(3,:), ...
+                            LineWidth=1,DisplayName=name_plot,Color=options.color)
+
+                    end
                 else
-                    plot3(obj.sol.x(1,:),obj.sol.x(2,:),obj.sol.x(3,:), ...
-                        LineWidth=1,DisplayName=name_plot,Color=options.color)
-
+                    fprintf("Error in the propagation, tspan exploded for %s\n", obj.name);
                 end
 
                 if options.plot_2d_xy
@@ -101,12 +107,18 @@
                 else
                     name_plot = obj.name;
                 end
+
+                num_revs = obj.sol.t/obj.prob.Tp;
                 
-                if isempty(options.color)
-                    plot(obj.sol.t/obj.prob.Tp, dVal,LineWidth=2,DisplayName=name_plot);
+                if num_revs(end) < obj.prob.Nrevs + 10
+                    if isempty(options.color)
+                        plot(num_revs, dVal,LineWidth=2,DisplayName=name_plot);
+                    else
+                        plot(num_revs,dVal,LineWidth=2,DisplayName=name_plot,...
+                            Color=options.color);
+                    end
                 else
-                    plot(obj.sol.t/obj.prob.Tp,dVal,LineWidth=2,DisplayName=name_plot,...
-                    Color=options.color);
+                    fprintf("Error in the propagation, tspan exploded for %s\n", obj.name);
                 end
 
                 xlabel('Revolutions', 'Interpreter', 'latex');
