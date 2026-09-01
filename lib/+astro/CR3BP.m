@@ -193,9 +193,6 @@ classdef CR3BP < astro.DynamicalSystem
         % CHANCE\src\SI4_5stage_CR3BP_Scheme2_integrating_controller_*.m.
         % Not yet wired into SI.propagate/TimeRegularized.propagate as a
         % selectable 'precision' option -- that is a follow-up pass.
-        % The double-double ('dd') variants are not folded in here yet;
-        % they still live as standalone files under
-        % lib/integrators/precision/CR3BP/ pending a more careful port.
         % ---------------------------------------------------------------
 
         function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
