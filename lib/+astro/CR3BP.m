@@ -176,19 +176,11 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
 
-        % ---------------------------------------------------------------
-        % Precision-ladder one-timestep kernels (Scheme 2), ported from
-        % CHANCE\src\SI2_CR3BP_onetimestep_Scheme2_*.m and
-        % CHANCE\src\SI4_5stage_CR3BP_Scheme2_integrating_controller_*.m.
-        % Not yet wired into SI.propagate/TimeRegularized.propagate as a
-        % selectable 'precision' option -- that is a follow-up pass.
-        % ---------------------------------------------------------------
+        % Precision-ladder kernels (Scheme 2), ported from CHANCE. Not yet
+        % wired into SI/TimeRegularized as a selectable 'precision' option.
 
         function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
-            % Uncompensated hand-expanded scalar form of the Scheme 2 update,
-            % 0 compensated additions. Control case for isolating the cost of
-            % compensation against SI_EOM_CS, which evaluates the identical
-            % expressions.
+            % Uncompensated scalar form. Baseline for SI_EOM_CS.
             dt  = phi_l*dt;
             hdt = dt/2;
             dt2_4 = 4 + dt^2;
@@ -246,9 +238,7 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function [x,p] = SI_EOM_Increment(obj, dt, phi_l, x, p)
-            % Same algebraic-increment reformulation as SI_EOM_ICS, but
-            % accumulated by ordinary addition (0 compensated additions).
-            % Isolates the effect of the increment formulation alone.
+            % Increment form of SI_EOM_ICS, uncompensated.
             dt    = phi_l*dt;
             hdt   = dt/2;
             dt2_4 = 4 + dt^2;
@@ -285,19 +275,9 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function [x,p,e_x,e_p] = SI_EOM_ICS(obj, dt, phi_l, x, p, e_x, e_p)
-            % "ICS" = Increment + Compensated Summation. Same increments as
-            % SI_EOM_Increment, accumulated with Kahan compensation (9
-            % compensated adds/step). Each increment is derived algebraically
-            % rather than by forming the updated value and subtracting --
-            % subtraction of nearly-equal floats is exact by Sterbenz, so
-            % recovering the increment that way would leave the compensation
-            % register empty and make the scheme a no-op.
-            %
-            % Center-agnostic via obj.r2, same convention as SI_EOM: the
-            % p2-centering shift s = 1-mu-r2 is 0 for center='bary' (so this
-            % reduces exactly to the original CHANCE Scheme-2 formulas) and
-            % 1-mu for center='p2'. Only the q_n2/q_n1 stages depend on it
-            % -- p_n1 never does -- so it only touches dx1/dx2/dxx2 below.
+            % Increment + Kahan-compensated summation (9 adds/step).
+            % Center-agnostic via obj.r2, same as SI_EOM: shift s=1-mu-r2
+            % is 0 at bary, 1-mu at p2.
             dt  = phi_l*dt;
             hdt = dt/2;
             dt2_4 = 4 + dt^2;
@@ -335,14 +315,9 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function [x_n1,p_n1,e_x2,e_x,e_p,e_dt2_4] = SI_EOM_CS(obj, dt, phi_l, x, p, e_x2, e_x, e_p, e_dt2_4)
-            % "CS" = full closed-form update with Kahan compensation on every
-            % intermediate partial sum (24 compensated adds/step -- 2 more
-            % than before, for the shift below; they're no-ops at bary since
-            % s=0 there). More expensive and more precise than SI_EOM_ICS.
-            %
-            % Center-agnostic via obj.r2, same convention as SI_EOM_ICS
-            % above. NOTE: e_x2 grew from 7 to 9 slots and e_x from 5 to 6 --
-            % any caller pre-allocating these accumulators needs to match.
+            % Closed-form update, Kahan-compensated on every partial sum
+            % (24 adds/step). Center-agnostic like SI_EOM_ICS.
+            % e_x2 is 9 slots, e_x is 6.
             dt = phi_l*dt;
             hdt = dt/2;
             s = 1 - obj.mu - obj.r2;
@@ -405,30 +380,12 @@ classdef CR3BP < astro.DynamicalSystem
             p_n1 = [p_n1_1; p_n1_2; p_n1_3];
         end
 
-        % ---------------------------------------------------------------
-        % Double-double (dd) precision kernels, ported from
-        % CHANCE\src\SI2_CR3BP_Scheme2_dd_onetimestep.m and
-        % SI4_CR3BP_5stage_ddInc.m. State-only: no STM/monodromy (that
-        % full_DD/STM-in-dd feature is deferred, not ported here). Both
-        % reuse the shared dd arithmetic toolkit in lib/utils/ (dd_add,
-        % dd_mul, dd_recip, dd_accum, twoSum, twoProd, ...), which already
-        % used the same [hi,lo] pair convention as CHANCE's own
-        % dd_add/dd_mul -- no convention reconciliation was actually
-        % needed.
-        % ---------------------------------------------------------------
+        % Double-double (dd) precision kernels, ported from CHANCE.
+        % State-only, no STM (full_DD deferred). Toolkit in lib/utils/.
 
         function [xh,xl,ph,pl] = SI_EOM_dd(obj, dt, phi_l, xh, xl, ph, pl)
-            % State-only double-double variant of SI_EOM's scheme 2
-            % (Stormer-Verlet B): the T/D linear algebra runs in dd: force
-            % is still evaluated at double precision at the double-word
-            % part of x_n2, matching how SI_EOM_Expanded/ICS/CS all
-            % evaluate obj.partialU. Ported from CHANCE's
-            % SI2_CR3BP_Scheme2_dd_onetimestep.m (which used a
-            % separate-hi/lo-scalar calling convention for the same
-            % dd_add/dd_mul/TwoProd math); reciprocal here uses the
-            % shared dd_recip helper (Newton refinement) in place of
-            % CHANCE's dd_div(1,0,...), an equivalent way of computing the
-            % same reciprocal to double-double accuracy.
+            % Scheme 2 (Stormer-Verlet B) with T/D linear algebra in dd;
+            % force still evaluated at double precision.
             dt  = phi_l*dt;
             hdt = dt/2;
 
@@ -482,18 +439,8 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function [xh,xl,ph,pl] = SI_EOM_ddInc(obj, dt, phi_l, xh, xl, ph, pl)
-            % Double-double analogue of SI_EOM_ICS: the same algebraic
-            % increments as SI_EOM_Increment, but the state is carried as
-            % a double-double (xh,xl)/(ph,pl) pair and each increment is
-            % folded in error-free via dd_accum (TwoSum + quickTwoSum
-            % renormalization) instead of Kahan compensation. Force is
-            % still evaluated at double precision at the compensated point
-            % xh+xl -- only the accumulation runs in extended precision,
-            % which is where round-off that grows with the step count
-            % enters. Ported from CHANCE's SI4_CR3BP_5stage_ddInc.m (this
-            % is its per-substep `step` kernel; the file's outer loop over
-            % phi_l and its `acc` helper are SI.m's composition loop and
-            % dd_accum, respectively).
+            % dd analogue of SI_EOM_ICS: same increments as
+            % SI_EOM_Increment, folded in via dd_accum instead of Kahan.
             dt    = phi_l*dt;
             hdt   = dt/2;
             dt2_4 = 4 + dt^2;
