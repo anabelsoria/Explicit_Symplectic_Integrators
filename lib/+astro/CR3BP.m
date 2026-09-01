@@ -157,126 +157,32 @@ classdef CR3BP < astro.DynamicalSystem
 
         end
 
-        function [q_n1, p_n1, e_dt] = SI_EOM(obj, dt, scheme, X,e_dt)
+        function [q_n1, p_n1] = SI_EOM(obj, dt, scheme, X)
             q = X(1:3);
             p = X(4:6);
 
-            dt2 = (dt) / 2;
-            den = 1 + (dt2^2);
+            dt2 = dt / 2;
+            den = 1 + dt2^2;
 
-            % [den_compsum, e_dt] = comp_sum(1,e_dt,vpa(dt2^2));
-            % den = den_compsum;
+            T = (1/den) * [1, dt2, 0;
+                -dt2, 1, 0;
+                0,  0, den];
 
-            % T = (1/den) * [1, dt2, 0;
-            %     -dt2, 1, 0;
-            %     0,  0, den];
-            %
-            % D = [1, dt2, 0;
-            %     -dt2, 1,  0;
-            %     0,   0,  1];
-
-            %T = double(T); D = double(D);
-
-            x = dt2;
-            absx = abs(x);
-            if absx < 1e-3
-                % Use Taylor series for a = 1/(1+x^2) and b = x/(1+x^2)
-                % a = 1 - x^2 + x^4 - x^6 + ...
-                % b = x*(1 - x^2 + x^4 - ...)
-                x2 = x*x;
-                x4 = x2*x2;
-                x6 = x4*x2;
-                % keep up to x^4 terms (usually enough for tiny x)
-                a = 1 - x2 + x4 -x6;
-                b = x*(1 - x2 + x4 -x6);
-            else
-                % Direct stable computation
-                den = 1 + x*x;    % safe here because x not extremely tiny
-                a = 1.0 / den;
-                b = x * a;
-            end
-
-            % Build T and D
-            T = [ a,  b, 0;
-                -b,  a, 0;
-                0,  0, 1];
-
-            D = [1, x, 0;
-                -x,1,  0;
-                0, 0,  1];
-
+            D = [1, dt2, 0;
+                -dt2, 1,  0;
+                0,   0,  1];
 
             switch scheme
                 case 1 % Stormer-Verlet A
-                    if ~strcmp(obj.center,"bary")
-                        error("Scheme 1 not implemented with center thats not bary")
-                    end
                     p_n2 = T * (p - dt2 * obj.partialU(q));
                     q_n1 = T * (D * q + dt * p_n2);
                     p_n1 = D * p_n2 - dt2 * obj.partialU(q_n1);
 
                 case 2 % Stormer-Verlet B
-                    % q_n2 = T * (q + dt2 * (p - [0; 1-obj.mu - obj.r2;0]));
-                    % p_n1 = T * (D * p - dt * obj.partialU(q_n2));
-                    % q_n1 = D * q_n2 + dt2 * (p_n1 - [0; 1-obj.mu - obj.r2;0]);
-
-                    x = dt / 2;                  % dt2
-                    shift = [0; 1 - obj.mu - obj.r2; 0];
-                    one_dd = obj.dd_from_double(1.0);
-                    x_dd   = obj.dd_from_double(x);
-
-                    % --- den = 1 + x^2 (dd)
-                    x2_dd  = obj.dd_mul(x_dd, x_dd);
-                    den_dd = obj.dd_add(one_dd, x2_dd);
-
-                    % --- a = 1 / den (dd), b = x / (1 + x^2) (dd)
-                    a_dd = obj.dd_recip(den_dd);
-                    b_dd = obj.dd_mul(x_dd, a_dd);
-
-                    % ==========================================================
-                    % q_n2 = T * (q + dt2 * (p - shift))
-                    % ==========================================================
-                    tmp = q + x * (p - shift);
-                    q_n2 = zeros(3,1);
-
-                    % first two components via dd rotation
-                    q_n2(1) = obj.dd2double(obj.dd_add(obj.dd_mul(a_dd, obj.dd_from_double(tmp(1))), ...
-                        obj.dd_mul(b_dd, obj.dd_from_double(tmp(2)))));
-                    q_n2(2) = obj.dd2double(obj.dd_add(obj.dd_mul(obj.dd_neg(b_dd), obj.dd_from_double(tmp(1))), ...
-                        obj.dd_mul(a_dd, obj.dd_from_double(tmp(2)))));
-                    q_n2(3) = tmp(3);  % third unchanged
-
-                    % ==========================================================
-                    % p_n1 = T * (D * p - dt * gradU(q_n2))
-                    % ==========================================================
-                    grad = obj.partialU(q_n2);
-
-                    % D*p
-                    Dp = [p(1) + x*p(2);
-                        -x*p(1) + p(2);
-                        p(3)];
-
-                    v = Dp - dt * grad;
-
-                    p_n1 = zeros(3,1);
-                    p_n1(1) = obj.dd2double(obj.dd_add(obj.dd_mul(a_dd, obj.dd_from_double(v(1))), ...
-                        obj.dd_mul(b_dd, obj.dd_from_double(v(2)))));
-                    p_n1(2) = obj.dd2double(obj.dd_add(obj.dd_mul(obj.dd_neg(b_dd), obj.dd_from_double(v(1))), ...
-                        obj.dd_mul(a_dd, obj.dd_from_double(v(2)))));
-                    p_n1(3) = v(3);
-
-                    % ==========================================================
-                    % q_n1 = D * q_n2 + dt2 * (p_n1 - shift)
-                    % ==========================================================
-                    Dq_n2 = [q_n2(1) + x*q_n2(2);
-                        -x*q_n2(1) + q_n2(2);
-                        q_n2(3)];
-
-                    q_n1 = Dq_n2 + x * (p_n1 - shift);
-
+                    q_n2 = T * (q + dt2 * (p - [0; 1-obj.mu - obj.r2;0]));
+                    p_n1 = T * (D * p - dt * obj.partialU(q_n2));
+                    q_n1 = D * q_n2 + dt2 * (p_n1 - [0; 1-obj.mu - obj.r2;0]);
             end
-
-            %q_n1 = double(q_n1); p_n1 = double(p_n1);
 
         end
 
