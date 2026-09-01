@@ -35,9 +35,6 @@ classdef TimeRegularized < Integrator
                     %     error("Russell regularization requires the center to be at p2, but current center is " + obj.integrator.prob.center)
                     % end
 
-                case 'heggie'
-                    reg_fun = @(q,p) obj.heggie_regularization(q,p);
-
                 otherwise
                     error('Unknown time regularization method.');
             end
@@ -158,34 +155,6 @@ classdef TimeRegularized < Integrator
             t68 = conj(t67);
             t74 = conj(t73);
             G = t69.*t72.*(alpha_E.*t3.*t5.*t18.*t26.*t28.*t41.*t46.*t54.*t60.*t66.*t74+alpha_M.*t3.*t5.*t19.*t27.*t29.*t42.*t44.*t50.*t58.*t68.*t71).*(mu+p2-t9)+t69.*t72.*(p1+q2).*(alpha_M.*t2.*t19.*t27.*t29.*t42.*t44.*t50.*t58.*t68.*t71.*sign(q1)+alpha_E.*t12.*t18.*t26.*t28.*t41.*t46.*t54.*t60.*t66.*t74.*sign(t9))+p3.*t69.*t72.*(alpha_E.*t4.*t6.*t18.*t26.*t28.*t41.*t46.*t54.*t60.*t66.*t74+alpha_M.*t4.*t6.*t19.*t27.*t29.*t42.*t44.*t50.*t58.*t68.*t71);
-        end
-
-        function [z, G] = heggie_regularization(obj,q,p)
-            r12 = norm(q(1:3)-[obj.r1,0,0]'); % s/c - primary
-            r13 = norm(q(1:3)-[obj.r2,0,0]'); % s/c - secondary
-            r23 = norm([obj.r1,0,0]' - [obj.r2,0,0]'); % primary - secondary
-
-            g = r12*r13*r23 / (r12 + r13 + r23)^(3/2);
-
-            z = 1/g;
-
-            % TODO: diff_g_heggie(q,r2,r3) only ever worked in the removed
-            % HR4BP branch -- its r2/r3 args (HR4BP primary position
-            % vectors) were never defined here, and diff_g_heggie.m itself
-            % has been removed. There's a commented-out hand-expanded
-            % formula below (diff_g_q1/q2/q3) that looks like an attempt
-            % at a non-HR4BP version, using the same r2/r3 naming -- worth
-            % checking whether that's meant to use [obj.r1,0,0]'/[obj.r2,0,0]'
-            % in place of the HR4BP r2/r3 vectors before this is usable.
-            error('heggie_regularization:notImplemented', ...
-                'Heggie regularization is not implemented for non-HR4BP systems.');
-
-            % diff_g_q1 = ((2*q(1) - 2*r2(1))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(1) - r2(1))/r12 + (q(1) - r3(1))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(1) - 2*r3(1))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
-            % diff_g_q2 = ((2*q(1) - 2*r2(2))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(1) - r2(2))/r12 + (q(1) - r3(2))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(1) - 2*r3(2))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
-            % diff_g_q3 = ((2*q(3) - 2*r2(3))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(3) - r2(3))/r12 + (q(3) - r3(3))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(3) - 2*r3(3))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
-
-            % Hp = obj.prob.DS.Hp([q;p])';
-            % G = -1/g * [diff_g_q1; diff_g_q2; diff_g_q3]' * Hp(1:3)';
         end
 
         % --- Propagation method ---
