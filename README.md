@@ -17,8 +17,9 @@ The codebase is organized using MATLAB classes for flexibility and extensibility
 ## Directory Structure
 
 - `lib/+astro/`: dynamical-system classes (`CR3BP`, `ER3BP`, `BCR4BP`, `HR4BP`, `TwoBody`) and orbital-element conversion utilities (`+conics`)
+  - `CR3BP`/`ER3BP` carry the compensated-summation precision ladder as methods alongside `SI_EOM`: `SI_EOM_Expanded`/`SI_EOM_Increment` (uncompensated baselines), `SI_EOM_ICS` (increment + compensated summation), `SI_EOM_CS` (full compensated summation), and — CR3BP only — `SI_EOM_TR_ICS`/`SI_EOM_TR_CS` (time-regularized versions of the same). Not yet wired into `SI`/`TimeRegularized` as a selectable `precision` option — that's a follow-up.
 - `lib/integrators/`: the integrator classes (`SI`, `RK`, `TimeRegularized`, `Integrator`)
-  - `lib/integrators/precision/CR3BP/`, `lib/integrators/precision/ER3BP/`: standalone one-timestep kernels for the compensated-summation/double-double precision ladder (uncompensated baseline, `CompSumScalar`/ICS, `ExtCompSum`/CS, double-double), fixed-step and time-regularized. Not yet wired into the `SI`/`TimeRegularized` classes as a selectable option — that's a follow-up.
+  - `lib/integrators/precision/CR3BP/`: the double-double (`dd`) precision variants, still standalone (not yet folded into `CR3BP` — they use a different calling convention, ported more carefully as a separate step)
 - `lib/utils/`: shared numerical helpers (`comp_sum`, double-double arithmetic, plotting)
 
 Example/driver scripts (`Example_TBP/`, `Example_CR3BP/`, etc.) are still at their original top-level locations pending a separate reorganization pass.
