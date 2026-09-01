@@ -17,9 +17,9 @@ The codebase is organized using MATLAB classes for flexibility and extensibility
 ## Directory Structure
 
 - `lib/+astro/`: dynamical-system classes (`CR3BP`, `ER3BP`, `BCR4BP`, `TwoBody`) and orbital-element conversion utilities (`+conics`)
-  - `CR3BP`/`ER3BP` carry the precision ladder as methods alongside `SI_EOM`: `SI_EOM_Expanded`/`SI_EOM_Increment` (uncompensated baselines), `SI_EOM_ICS` (increment + compensated summation), `SI_EOM_CS` (full compensated summation), and — CR3BP only — `SI_EOM_dd`/`SI_EOM_ddInc` (double-double: full closed-form and increment-form respectively). Not yet wired into `SI`/`TimeRegularized` as a selectable `precision` option — that's a follow-up. (Time-regularized compensated-summation kernels, `SI_EOM_TR_ICS`/`SI_EOM_TR_CS`, are deferred for now.) `CR3BP.m` also carries a `methods (Static)` double-double arithmetic toolkit (`dd_add`, `dd_mul`, `dd_recip`, `dd_accum`, `twoSum`, `twoProd`, ...) used by `SI_EOM_dd`/`SI_EOM_ddInc`.
+  - `CR3BP`/`ER3BP` carry the precision ladder as methods alongside `SI_EOM`: `SI_EOM_Expanded`/`SI_EOM_Increment` (uncompensated baselines), `SI_EOM_ICS` (increment + compensated summation), `SI_EOM_CS` (full compensated summation), and — CR3BP only — `SI_EOM_dd`/`SI_EOM_ddInc` (double-double: full closed-form and increment-form respectively). Not yet wired into `SI`/`TimeRegularized` as a selectable `precision` option — that's a follow-up. (Time-regularized compensated-summation kernels, `SI_EOM_TR_ICS`/`SI_EOM_TR_CS`, are deferred for now.)
 - `lib/integrators/`: the integrator classes (`SI`, `RK`, `TimeRegularized`, `Integrator`)
-- `lib/utils/`: shared numerical helpers (`comp_sum`, double-double arithmetic, plotting)
+- `lib/utils/`: shared numerical helpers -- `comp_sum` (Kahan compensated summation), a double-double arithmetic toolkit (`dd_add`, `dd_sub`, `dd_mul`, `dd_neg`, `dd_recip`, `dd_accum`, `dd_from_double`, `dd2double`, `twoSum`, `quickTwoSum`, `twoProd`, one function per file) used by `SI_EOM_dd`/`SI_EOM_ddInc`, and plotting helpers
 
 Example/driver scripts (`Example_TBP/`, `Example_CR3BP/`, etc.) are still at their original top-level locations pending a separate reorganization pass.
 

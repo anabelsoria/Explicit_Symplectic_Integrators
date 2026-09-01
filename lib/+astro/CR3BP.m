@@ -408,14 +408,13 @@ classdef CR3BP < astro.DynamicalSystem
         % ---------------------------------------------------------------
         % Double-double (dd) precision kernels, ported from
         % CHANCE\src\SI2_CR3BP_Scheme2_dd_onetimestep.m and
-        % SI4_CR3BP_5stage_ddInc.m. State-only: no STM/monodromy (for that,
-        % see SI2_CR3BP_onetimestep_Scheme2_full_DD.m, kept standalone --
-        % it propagates the STM in dd too, using its own self-contained
-        % helper set, and is a separate feature from the state-only
-        % precision ladder here). Both reuse the class's existing dd
-        % arithmetic toolkit in methods (Static) below, which already used
-        % the same [hi,lo] pair convention as CHANCE's own dd_add/dd_mul --
-        % no convention reconciliation was actually needed.
+        % SI4_CR3BP_5stage_ddInc.m. State-only: no STM/monodromy (that
+        % full_DD/STM-in-dd feature is deferred, not ported here). Both
+        % reuse the shared dd arithmetic toolkit in lib/utils/ (dd_add,
+        % dd_mul, dd_recip, dd_accum, twoSum, twoProd, ...), which already
+        % used the same [hi,lo] pair convention as CHANCE's own
+        % dd_add/dd_mul -- no convention reconciliation was actually
+        % needed.
         % ---------------------------------------------------------------
 
         function [xh,xl,ph,pl] = SI_EOM_dd(obj, dt, phi_l, xh, xl, ph, pl)
@@ -427,26 +426,26 @@ classdef CR3BP < astro.DynamicalSystem
             % SI2_CR3BP_Scheme2_dd_onetimestep.m (which used a
             % separate-hi/lo-scalar calling convention for the same
             % dd_add/dd_mul/TwoProd math); reciprocal here uses the
-            % class's existing dd_recip (Newton refinement) in place of
+            % shared dd_recip helper (Newton refinement) in place of
             % CHANCE's dd_div(1,0,...), an equivalent way of computing the
             % same reciprocal to double-double accuracy.
             dt  = phi_l*dt;
             hdt = dt/2;
 
             %% den = 1 + hdt^2, inv_den = 1/den, hdt/den
-            hdt2   = obj.dd_mul([hdt,0], [hdt,0]);
-            den    = obj.dd_add([1,0], hdt2);
-            invden = obj.dd_recip(den);
-            hdtden = obj.dd_mul([hdt,0], invden);
+            hdt2   = dd_mul([hdt,0], [hdt,0]);
+            den    = dd_add([1,0], hdt2);
+            invden = dd_recip(den);
+            hdtden = dd_mul([hdt,0], invden);
 
             %% v = x + hdt*p
-            v1 = obj.dd_add([xh(1),xl(1)], obj.dd_mul([hdt,0],[ph(1),pl(1)]));
-            v2 = obj.dd_add([xh(2),xl(2)], obj.dd_mul([hdt,0],[ph(2),pl(2)]));
-            v3 = obj.dd_add([xh(3),xl(3)], obj.dd_mul([hdt,0],[ph(3),pl(3)]));
+            v1 = dd_add([xh(1),xl(1)], dd_mul([hdt,0],[ph(1),pl(1)]));
+            v2 = dd_add([xh(2),xl(2)], dd_mul([hdt,0],[ph(2),pl(2)]));
+            v3 = dd_add([xh(3),xl(3)], dd_mul([hdt,0],[ph(3),pl(3)]));
 
             %% x_n2 = Tinv * v
-            xn2_1 = obj.dd_add(obj.dd_mul(invden, v1), obj.dd_mul(hdtden, v2));
-            xn2_2 = obj.dd_add(obj.dd_mul(obj.dd_neg(hdtden), v1), obj.dd_mul(invden, v2));
+            xn2_1 = dd_add(dd_mul(invden, v1), dd_mul(hdtden, v2));
+            xn2_2 = dd_add(dd_mul(dd_neg(hdtden), v1), dd_mul(invden, v2));
             xn2_3 = v3;
 
             %% Force at x_n2, evaluated at double precision (high word only)
@@ -454,26 +453,26 @@ classdef CR3BP < astro.DynamicalSystem
             dU = obj.partialU(x_n2);
 
             %% w = D*p - dt*dU
-            w1 = obj.dd_add([ph(1),pl(1)], obj.dd_mul([hdt,0],[ph(2),pl(2)]));
-            w2 = obj.dd_add(obj.dd_mul([-hdt,0],[ph(1),pl(1)]), [ph(2),pl(2)]);
+            w1 = dd_add([ph(1),pl(1)], dd_mul([hdt,0],[ph(2),pl(2)]));
+            w2 = dd_add(dd_mul([-hdt,0],[ph(1),pl(1)]), [ph(2),pl(2)]);
             w3 = [ph(3),pl(3)];
 
-            w1 = obj.dd_add(w1, obj.dd_mul([-dt,0],[dU(1),0]));
-            w2 = obj.dd_add(w2, obj.dd_mul([-dt,0],[dU(2),0]));
-            w3 = obj.dd_add(w3, obj.dd_mul([-dt,0],[dU(3),0]));
+            w1 = dd_add(w1, dd_mul([-dt,0],[dU(1),0]));
+            w2 = dd_add(w2, dd_mul([-dt,0],[dU(2),0]));
+            w3 = dd_add(w3, dd_mul([-dt,0],[dU(3),0]));
 
             %% p_n1 = Tinv * w
-            pn1_1 = obj.dd_add(obj.dd_mul(invden, w1), obj.dd_mul(hdtden, w2));
-            pn1_2 = obj.dd_add(obj.dd_mul(obj.dd_neg(hdtden), w1), obj.dd_mul(invden, w2));
+            pn1_1 = dd_add(dd_mul(invden, w1), dd_mul(hdtden, w2));
+            pn1_2 = dd_add(dd_mul(dd_neg(hdtden), w1), dd_mul(invden, w2));
             pn1_3 = w3;
 
             %% x_n1 = D*x_n2 + hdt*p_n1
-            g1 = obj.dd_add(xn2_1, obj.dd_mul([hdt,0], xn2_2));
-            g2 = obj.dd_add(obj.dd_mul([-hdt,0], xn2_1), xn2_2);
+            g1 = dd_add(xn2_1, dd_mul([hdt,0], xn2_2));
+            g2 = dd_add(dd_mul([-hdt,0], xn2_1), xn2_2);
 
-            xn1_1 = obj.dd_add(g1, obj.dd_mul([hdt,0], pn1_1));
-            xn1_2 = obj.dd_add(g2, obj.dd_mul([hdt,0], pn1_2));
-            xn1_3 = obj.dd_add(xn2_3, obj.dd_mul([hdt,0], pn1_3));
+            xn1_1 = dd_add(g1, dd_mul([hdt,0], pn1_1));
+            xn1_2 = dd_add(g2, dd_mul([hdt,0], pn1_2));
+            xn1_3 = dd_add(xn2_3, dd_mul([hdt,0], pn1_3));
 
             %% Output
             xh = [xn1_1(1); xn1_2(1); xn1_3(1)];
@@ -486,7 +485,7 @@ classdef CR3BP < astro.DynamicalSystem
             % Double-double analogue of SI_EOM_ICS: the same algebraic
             % increments as SI_EOM_Increment, but the state is carried as
             % a double-double (xh,xl)/(ph,pl) pair and each increment is
-            % folded in error-free via obj.dd_accum (TwoSum + quickTwoSum
+            % folded in error-free via dd_accum (TwoSum + quickTwoSum
             % renormalization) instead of Kahan compensation. Force is
             % still evaluated at double precision at the compensated point
             % xh+xl -- only the accumulation runs in extended precision,
@@ -494,7 +493,7 @@ classdef CR3BP < astro.DynamicalSystem
             % enters. Ported from CHANCE's SI4_CR3BP_5stage_ddInc.m (this
             % is its per-substep `step` kernel; the file's outer loop over
             % phi_l and its `acc` helper are SI.m's composition loop and
-            % obj.dd_accum, respectively).
+            % dd_accum, respectively).
             dt    = phi_l*dt;
             hdt   = dt/2;
             dt2_4 = 4 + dt^2;
@@ -507,9 +506,9 @@ classdef CR3BP < astro.DynamicalSystem
             dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
             dx3 = hdt*p(3);
 
-            [xh(1),xl(1)] = obj.dd_accum(xh(1),xl(1),dx1);
-            [xh(2),xl(2)] = obj.dd_accum(xh(2),xl(2),dx2);
-            [xh(3),xl(3)] = obj.dd_accum(xh(3),xl(3),dx3);
+            [xh(1),xl(1)] = dd_accum(xh(1),xl(1),dx1);
+            [xh(2),xl(2)] = dd_accum(xh(2),xl(2),dx2);
+            [xh(3),xl(3)] = dd_accum(xh(3),xl(3),dx3);
 
             x = xh + xl;
 
@@ -521,9 +520,9 @@ classdef CR3BP < astro.DynamicalSystem
             dp2 = dt*(-4*p(1) - 2*dt*p(2) + 2*dt*dU(1) - 4*dU(2))/dt2_4;
             dp3 = -dt*dU(3);
 
-            [ph(1),pl(1)] = obj.dd_accum(ph(1),pl(1),dp1);
-            [ph(2),pl(2)] = obj.dd_accum(ph(2),pl(2),dp2);
-            [ph(3),pl(3)] = obj.dd_accum(ph(3),pl(3),dp3);
+            [ph(1),pl(1)] = dd_accum(ph(1),pl(1),dp1);
+            [ph(2),pl(2)] = dd_accum(ph(2),pl(2),dp2);
+            [ph(3),pl(3)] = dd_accum(ph(3),pl(3),dp3);
 
             p = ph + pl;
 
@@ -532,9 +531,9 @@ classdef CR3BP < astro.DynamicalSystem
             dxx2 = hdt*(p(2) - x(1));
             dxx3 = hdt*p(3);
 
-            [xh(1),xl(1)] = obj.dd_accum(xh(1),xl(1),dxx1);
-            [xh(2),xl(2)] = obj.dd_accum(xh(2),xl(2),dxx2);
-            [xh(3),xl(3)] = obj.dd_accum(xh(3),xl(3),dxx3);
+            [xh(1),xl(1)] = dd_accum(xh(1),xl(1),dxx1);
+            [xh(2),xl(2)] = dd_accum(xh(2),xl(2),dxx2);
+            [xh(3),xl(3)] = dd_accum(xh(3),xl(3),dxx3);
         end
 
         function C = jacobiconstant(obj, sol)
@@ -596,90 +595,4 @@ classdef CR3BP < astro.DynamicalSystem
         end
     end
 
-    methods (Static)
-        % =========================
-        % --- DOUBLE-DOUBLE ARITHMETIC ---
-        % =========================
-        function dd = dd_from_double(x)
-            dd = [x, 0.0];
-        end
-
-        function d = dd2double(dd)
-            d = dd(1) + dd(2);
-        end
-
-        function dd = dd_add(a, b)
-            [s, e1] = astro.CR3BP.twoSum(a(1), b(1));
-            e = a(2) + b(2) + e1;
-            [hi, lo] = astro.CR3BP.quickTwoSum(s, e);
-            dd = [hi, lo];
-        end
-
-        function dd = dd_sub(a, b)
-            [s, e1] = astro.CR3BP.twoSum(a(1), -b(1));
-            e = a(2) - b(2) + e1;
-            [hi, lo] = astro.CR3BP.quickTwoSum(s, e);
-            dd = [hi, lo];
-        end
-
-        function dd = dd_mul(a, b)
-            [p1, e1] = astro.CR3BP.twoProd(a(1), b(1));
-            t = a(1)*b(2) + a(2)*b(1);
-            s = p1 + t;
-            e = e1 + (t - (s - p1)) + a(2)*b(2);
-            [hi, lo] = astro.CR3BP.quickTwoSum(s, e);
-            dd = [hi, lo];
-        end
-
-        function dd = dd_neg(a)
-            dd = [-a(1), -a(2)];
-        end
-
-        function dd = dd_recip(d)
-            r0 = 1.0 / d(1);
-            r = astro.CR3BP.dd_from_double(r0);
-            one = astro.CR3BP.dd_from_double(1.0);
-            dr = astro.CR3BP.dd_mul(d, r);
-            tmp = astro.CR3BP.dd_sub(one, dr);
-            corr = astro.CR3BP.dd_mul(r, tmp);
-            r = astro.CR3BP.dd_add(r, corr);
-            [hi, lo] = astro.CR3BP.quickTwoSum(r(1), r(2));
-            dd = [hi, lo];
-        end
-
-        function [zh, zl] = dd_accum(zh, zl, d)
-            % Error-free accumulation of a plain-double increment d into a
-            % double-double pair (zh,zl): TwoSum captures the rounding
-            % error of zh+d, then a quickTwoSum renormalization folds it
-            % back in. Used by SI_EOM_ddInc in place of Kahan compensation
-            % (comp_sum's dd counterpart). Ported from the local `acc`
-            % helper in CHANCE's SI4_CR3BP_5stage_ddInc.m.
-            [s, e] = astro.CR3BP.twoSum(zh, d);
-            zl = zl + e;
-            [zh, zl] = astro.CR3BP.quickTwoSum(s, zl);
-        end
-
-        % --- ERROR-FREE TRANSFORMS ---
-        function [s, e] = twoSum(a, b)
-            s = a + b;
-            bp = s - a;
-            e = (a - (s - bp)) + (b - bp);
-        end
-
-        function [s, e] = quickTwoSum(a, b)
-            s = a + b;
-            e = b - (s - a);
-        end
-
-        function [p, e] = twoProd(a, b)
-            c = 134217729 * a; % 2^27+1
-            a_hi = c - (c - a);
-            a_lo = a - a_hi;
-            c = 134217729 * b;
-            b_hi = c - (c - b);
-            b_lo = b - b_hi;
-            p = a * b;
-            e = ((a_hi * b_hi - p) + a_hi*b_lo + a_lo*b_hi) + a_lo*b_lo;
-        end
-    end
 end
