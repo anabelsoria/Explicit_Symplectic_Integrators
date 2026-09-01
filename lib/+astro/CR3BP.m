@@ -306,13 +306,21 @@ classdef CR3BP < astro.DynamicalSystem
             % subtraction of nearly-equal floats is exact by Sterbenz, so
             % recovering the increment that way would leave the compensation
             % register empty and make the scheme a no-op.
+            %
+            % Center-agnostic via obj.r2, same convention as SI_EOM: the
+            % p2-centering shift s = 1-mu-r2 is 0 for center='bary' (so this
+            % reduces exactly to the original CHANCE Scheme-2 formulas) and
+            % 1-mu for center='p2' (matching SI_EOM_TR_ICS's hardcoded
+            % shift). Only the q_n2/q_n1 stages depend on it -- p_n1 never
+            % does -- so it only touches dx1/dx2/dxx2 below.
             dt  = phi_l*dt;
             hdt = dt/2;
             dt2_4 = 4 + dt^2;
+            s = 1 - obj.mu - obj.r2;
 
             %% Stage 1, x <- x_n2
-            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
-            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1) - dt*s)/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2) - 2*s)/dt2_4;
             dx3 = hdt*p(3);
 
             [x(1), e_x(1)] = comp_sum(x(1),e_x(1),dx1);
@@ -333,7 +341,7 @@ classdef CR3BP < astro.DynamicalSystem
 
             %% Stage 3, x <- x_n1
             dxx1 = hdt*(x(2) + p(1));
-            dxx2 = hdt*(p(2) - x(1));
+            dxx2 = hdt*(p(2) - x(1) - s);
             dxx3 = hdt*p(3);
 
             [x(1), e_x(1)] = comp_sum(x(1),e_x(1),dxx1);
@@ -343,28 +351,36 @@ classdef CR3BP < astro.DynamicalSystem
 
         function [x_n1,p_n1,e_x2,e_x,e_p,e_dt2_4] = SI_EOM_CS(obj, dt, phi_l, x, p, e_x2, e_x, e_p, e_dt2_4)
             % "CS" = full closed-form update with Kahan compensation on every
-            % intermediate partial sum (22 compensated adds/step). More
-            % expensive and more precise than SI_EOM_ICS.
+            % intermediate partial sum (24 compensated adds/step -- 2 more
+            % than before, for the shift below; they're no-ops at bary since
+            % s=0 there). More expensive and more precise than SI_EOM_ICS.
+            %
+            % Center-agnostic via obj.r2, same convention as SI_EOM_ICS
+            % above. NOTE: e_x2 grew from 7 to 9 slots and e_x from 5 to 6 --
+            % any caller pre-allocating these accumulators needs to match.
             dt = phi_l*dt;
             hdt = dt/2;
+            s = 1 - obj.mu - obj.r2;
 
             %% dt^2 + 4
             [dt2_4, e_dt2_4] = comp_sum(4,e_dt2_4,dt^2);
 
-            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2)) / (dt^2+4)
+            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2) - dt^2*s) / (dt^2+4)
             [s1, e_x2(1)] = comp_sum(4*x(1),e_x2(1),2*dt*p(1));
             [s2, e_x2(2)] = comp_sum(s1,e_x2(2),2*dt*x(2));
             [s3, e_x2(3)] = comp_sum(s2,e_x2(3),dt^2*p(2));
-            x_n2_1 = s3/dt2_4;
+            [s4, e_x2(4)] = comp_sum(s3,e_x2(4),-dt^2*s);
+            x_n2_1 = s4/dt2_4;
 
-            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2)) / (dt^2+4)
-            [s1, e_x2(4)] = comp_sum(4*x(2),e_x2(4),2*dt*p(2));
-            [s2, e_x2(5)] = comp_sum(s1,e_x2(5),-2*dt*x(1));
-            [s3, e_x2(6)] = comp_sum(s2,e_x2(6),-dt^2*p(1));
-            x_n2_2 = s3/dt2_4;
+            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2) - 2*dt*s) / (dt^2+4)
+            [s1, e_x2(5)] = comp_sum(4*x(2),e_x2(5),2*dt*p(2));
+            [s2, e_x2(6)] = comp_sum(s1,e_x2(6),-2*dt*x(1));
+            [s3, e_x2(7)] = comp_sum(s2,e_x2(7),-dt^2*p(1));
+            [s4, e_x2(8)] = comp_sum(s3,e_x2(8),-2*dt*s);
+            x_n2_2 = s4/dt2_4;
 
             %% x_n2(3) = x(3) + hdt*p(3)
-            [x_n2_3, e_x2(7)] = comp_sum(x(3),e_x2(7),hdt*p(3));
+            [x_n2_3, e_x2(9)] = comp_sum(x(3),e_x2(9),hdt*p(3));
 
             x_n2 = [x_n2_1; x_n2_2; x_n2_3];
 
@@ -392,12 +408,13 @@ classdef CR3BP < astro.DynamicalSystem
             [s1, e_x(1)] = comp_sum(x_n2_1,e_x(1),hdt*x_n2_2);
             [x_n1_1, e_x(2)] = comp_sum(s1,e_x(2),hdt*p_n1_1);
 
-            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2)
+            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2) - hdt*s
             [s1, e_x(3)] = comp_sum(x_n2_2,e_x(3),-hdt*x_n2_1);
-            [x_n1_2, e_x(4)] = comp_sum(s1,e_x(4),hdt*p_n1_2);
+            [s2, e_x(4)] = comp_sum(s1,e_x(4),hdt*p_n1_2);
+            [x_n1_2, e_x(5)] = comp_sum(s2,e_x(5),-hdt*s);
 
             %% x_n1(3) = x_n2(3) + hdt*p_n1(3)
-            [x_n1_3, e_x(5)] = comp_sum(x_n2_3,e_x(5),hdt*p_n1_3);
+            [x_n1_3, e_x(6)] = comp_sum(x_n2_3,e_x(6),hdt*p_n1_3);
 
             x_n1 = [x_n1_1; x_n1_2; x_n1_3];
             p_n1 = [p_n1_1; p_n1_2; p_n1_3];
