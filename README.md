@@ -16,10 +16,12 @@ The codebase is organized using MATLAB classes for flexibility and extensibility
 
 ## Directory Structure
 
-The repository contains the following main files:
+- `lib/+astro/`: dynamical-system classes (`CR3BP`, `ER3BP`, `BCR4BP`, `HR4BP`, `TwoBody`) and orbital-element conversion utilities (`+conics`)
+- `lib/integrators/`: the integrator classes (`SI`, `RK`, `TimeRegularized`, `Integrator`)
+  - `lib/integrators/precision/CR3BP/`, `lib/integrators/precision/ER3BP/`: standalone one-timestep kernels for the compensated-summation/double-double precision ladder (uncompensated baseline, `CompSumScalar`/ICS, `ExtCompSum`/CS, double-double), fixed-step and time-regularized. Not yet wired into the `SI`/`TimeRegularized` classes as a selectable option — that's a follow-up.
+- `lib/utils/`: shared numerical helpers (`comp_sum`, double-double arithmetic, plotting)
 
-- `Example_TBP/Example_TBP.m`: The main script with implementation of propagating a Two-Body Orbit
-- `Example_CR3BP/Example_CR3BP.m`: The main script with implementation of propagating a Circular Restricted Three-Body orbit
+Example/driver scripts (`Example_TBP/`, `Example_CR3BP/`, etc.) are still at their original top-level locations pending a separate reorganization pass.
 
 ## References
 

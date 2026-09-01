@@ -1,1 +1,25 @@
-src/SI.asv
+# MATLAB autosave / editor state
+*.asv
+*.m~
+
+# Data outputs (solution files, kept on Box, not in git)
+*.mat
+*.csv
+
+# Generated figures / output images (kept on Box, not in git)
+Figures/
+*.png
+
+# Compiled MEX binaries and MATLAB Coder build output (regenerable from source)
+*.mexw64
+*.mexa64
+*.mexmaci64
+**/codegen/
+
+# Legacy/superseded results
+old_Sols/
+
+# Misc scratch
+*.mldatx
+*.ninja
+mex_trials/
