@@ -87,19 +87,10 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
         function dh = Hamiltons_EOM(obj, t, s)
-            x = s(1); y = s(2); z = s(3);
+            x = s(1); y = s(2);
             px = s(4); py = s(5); pz = s(6);
 
-            mu1 = 1 - obj.mu;
-            mu2 = obj.mu;
-
-            r13 = sqrt((x - obj.r1)^2 + y^2 + z^2);
-            r23 = sqrt((x - obj.r2)^2 + y^2 + z^2);
-
-            % Ux = mu1 * (x - obj.r1) / r13^3 + mu2 * (x - obj.r2) / r23^3;
-            % Uy = mu1 * y / r13^3       + mu2 * y / r23^3;
-            % Uz = mu1 * z / r13^3       + mu2 * z / r23^3;
-            dUdx = partialU(obj, s(1:3));
+            dUdx = obj.partialU(s(1:3));
             Ux = dUdx(1); Uy = dUdx(2); Uz = dUdx(3);
 
             dh = zeros(6, 1);
@@ -139,8 +130,6 @@ classdef CR3BP < astro.DynamicalSystem
             Hp = [p(1) + q(2);...
                 p(2) - (1-obj.mu - obj.r2)- q(1);...
                 p(3)];
-
-            % Hp = [p1+q2,obj.mu+p2-q1-1.0,p3]';
         end
 
         function U = potentialU(obj,q)
