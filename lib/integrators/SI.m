@@ -20,7 +20,7 @@ classdef SI < Integrator
 
         function obj = SI(prob,order,scheme)
             % Constructor for the SI class
-            obj.name = 'SI';
+            obj.name = "SI" + num2str(order);
             obj.prob     = prob;
             obj.order = order;
             obj.scheme = scheme;
@@ -70,28 +70,74 @@ classdef SI < Integrator
             %   X     - State history [q; p] over time
             %   tspan - Time vector
 
-            tspan  = t0:dt:tf;
+            tspan  = (t0:dt:tf);
             nt = length(tspan);
             ns = length(obj.prob.nu0);
             nq = ns / 2;
 
-            X = zeros(ns, nt);
-            X(:,1) = obj.prob.nu0;
-            q = X(1:nq,1); p = X(nq+1:end,1);
+            dt = (dt);
 
+            X = (zeros(ns, nt));
+            X(:,1) = obj.prob.nu0;
+            q = (X(1:nq,1)); p = (X(nq+1:end,1));
+
+            e_dt = 0;
             tic
             for ii = 2:nt
                 for jj = 1:length(obj.gamma)
+                    % [q,p,e_dt] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p],e_dt);
                     [q,p] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p]);
                 end
                 X(1:nq,ii) = q;
                 X(nq+1:end,ii) = p;
+
+                % if abs(X(1,ii)) > 3
+                %     disp('Exploted')
+                %     continue
+                % end
             end
             obj.time_solver = toc;
 
             obj.sol.x = X;
             obj.sol.t = tspan;
+            obj.sol.Nsteps = length(tspan)/obj.prob.Nrevs;
             obj.sol.coord = 'hamiltonian';
+
+            if nargout > 0
+                varargout{1} = X;
+                varargout{2} = tspan;
+            end
+        end
+
+        function varargout = propagate_mex(obj,t0,tf,dt)
+            
+            tic
+            [X, tspan,coord] = SI_propagate_CR3BP_mex(t0, tf, dt, obj.prob.nu0, ...
+                int32(obj.scheme),  int32(obj.order),obj.prob.DS.mu, obj.prob.DS.r1, obj.prob.DS.r2);
+            obj.time_solver = toc;
+
+            obj.sol.x = X;
+            obj.sol.t = tspan;
+            obj.sol.coord = coord;
+            obj.sol.Nsteps = length(tspan);
+
+            if nargout > 0
+                varargout{1} = X;
+                varargout{2} = tspan;
+            end
+        end
+
+        function varargout = propagate_mex_dd(obj,t0,tf,dt)
+            
+            tic
+            [X, tspan,coord] = SI_propagate_CR3BP_dd_mex(t0, tf, dt, obj.prob.nu0, ...
+                int32(obj.scheme),  int32(obj.order),obj.prob.DS.mu, obj.prob.DS.r1, obj.prob.DS.r2);
+            obj.time_solver = toc;
+
+            obj.sol.x = X;
+            obj.sol.t = tspan;
+            obj.sol.coord = coord;
+            obj.sol.Nsteps = length(tspan);
 
             if nargout > 0
                 varargout{1} = X;

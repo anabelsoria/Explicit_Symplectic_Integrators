@@ -18,7 +18,7 @@ classdef RK < Integrator
     methods
         function obj = RK(prob, order)
             % Constructor for the RK class
-            obj.name = 'RK';
+            obj.name = "RK" + num2str(order);
             obj.prob  = prob;
             obj.order = order;
             obj.stepFun = RK.selectStepFunction(order);
@@ -53,6 +53,7 @@ classdef RK < Integrator
             
             obj.sol.x = X;
             obj.sol.t = tspan;
+            obj.sol.Nsteps = length(tspan)/obj.prob.Nrevs;
             obj.sol.coord = 'hamiltonian'; % Modify later to option cart
 
             if nargout > 0
@@ -60,6 +61,25 @@ classdef RK < Integrator
                 varargout{2} = tspan;
             end
 
+        end
+
+        function varargout = propagate_mex(obj, t0, tf, dt)
+            
+            tspan = t0:dt:tf;
+            tic
+            [X,coord] = RK_CR3BP_propagate_mex(t0, tf, dt, obj.prob.nu0, ...
+                int32(obj.order),obj.prob.DS.mu, obj.prob.DS.r1, obj.prob.DS.r2);
+            obj.time_solver = toc;
+
+            obj.sol.x = X;
+            obj.sol.t = tspan;
+            obj.sol.coord = coord;
+            obj.sol.Nsteps = length(tspan);
+
+            if nargout > 0
+                varargout{1} = X;
+                varargout{2} = tspan;
+            end
         end
     end
 
@@ -82,10 +102,12 @@ classdef RK < Integrator
             end
         end
 
-        function X_k1 = RK2(dt, t, X_k, f)
+        function [X_k1] = RK2(dt, t, X_k, f)
+            % ,k1,k2,dh,g,G,rE,rM
             % 2nd-order Runge-Kutta (Midpoint Method)
-            k1 = f(t, X_k);
-            k2 = f(t + dt, X_k + dt * k1);
+            % [k1,dh,g,G,rE,rM] = f(t, X_k);
+            [k1] = f(t, X_k);
+            [k2] = f(t + dt, X_k + dt * k1);
             X_k1 = X_k + (dt/2) * (k1 + k2);
         end
 
@@ -135,6 +157,6 @@ classdef RK < Integrator
             k_10= f(t+dt       ,X_k+(dt/820)*(1481*k_1-81*k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9));
             X_k1 = X_k + dt/840*(41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10);
         end
-
+  
     end
 end
