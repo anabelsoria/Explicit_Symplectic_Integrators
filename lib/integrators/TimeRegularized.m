@@ -57,20 +57,8 @@ classdef TimeRegularized < Integrator
             A_M = obj.params.A_M; B_M = obj.params.B_M; C_M = obj.params.C_M;
             rH_M = obj.params.rH_M; alpha_M = obj.params.alpha_M;
 
-            if isa(obj.prob.DS, 'astro.HR4BP')
-                tau = q(end);
-                [r3,r2] = obj.prob.DS.state_Earth_Moon(tau);
-                rE = norm(q(1:3)-r2);
-                rM = norm(q(1:3)-r3);
-
-                if rE < 0.2 || rM < 0.2
-                    disp('close!!!')
-                end
-            else
-
-                rE = norm(q(1:3)-[-1,0,0]');
-                rM = norm(q(1:3));
-            end
+            rE = norm(q(1:3)-[-1,0,0]');
+            rM = norm(q(1:3));
 
             rho_E = obj.rho_fun(A_E,B_E,C_E,rE,rH_E);
             rho_M = obj.rho_fun(A_M,B_M,C_M,rM,rH_M);
@@ -79,13 +67,7 @@ classdef TimeRegularized < Integrator
 
             z = 1/g;
 
-            if isa(obj.prob.DS, 'astro.HR4BP')
-                diff_g_q = diff_g_russell(q,r2,r3,obj.params);
-                Hp = obj.prob.DS.Hp([q;p])';
-                G = -1/g * diff_g_q * Hp(1:3)';
-            else
-                G = obj.G_Russell(q,p);
-            end
+            G = obj.G_Russell(q,p);
         end
 
         function rho = rho_fun(~,A,B,C,r,rH)
@@ -179,33 +161,31 @@ classdef TimeRegularized < Integrator
         end
 
         function [z, G] = heggie_regularization(obj,q,p)
+            r12 = norm(q(1:3)-[obj.r1,0,0]'); % s/c - primary
+            r13 = norm(q(1:3)-[obj.r2,0,0]'); % s/c - secondary
+            r23 = norm([obj.r1,0,0]' - [obj.r2,0,0]'); % primary - secondary
 
-            if isa(obj.prob.DS, 'astro.HR4BP')
-                tau = q(end);
-                [r3,r2] = obj.prob.DS.state_Earth_Moon(tau);
-                r12 = norm(q(1:3)-r2');
-                r13 = norm(q(1:3)-r3');
-                r23 = norm(r3-r2);
-
-            else
-                r12 = norm(q(1:3)-[obj.r1,0,0]'); % s/c - primary
-                r13 = norm(q(1:3)-[obj.r2,0,0]'); % s/c - secondary
-                r23 = norm([obj.r1,0,0]' - [obj.r2,0,0]'); % primary - secondary
-            end
-            
             g = r12*r13*r23 / (r12 + r13 + r23)^(3/2);
 
             z = 1/g;
 
-            diff_g_q = diff_g_heggie(q,r2,r3);
-           
+            % TODO: diff_g_heggie(q,r2,r3) only ever worked in the removed
+            % HR4BP branch -- its r2/r3 args (HR4BP primary position
+            % vectors) were never defined here, and diff_g_heggie.m itself
+            % has been removed. There's a commented-out hand-expanded
+            % formula below (diff_g_q1/q2/q3) that looks like an attempt
+            % at a non-HR4BP version, using the same r2/r3 naming -- worth
+            % checking whether that's meant to use [obj.r1,0,0]'/[obj.r2,0,0]'
+            % in place of the HR4BP r2/r3 vectors before this is usable.
+            error('heggie_regularization:notImplemented', ...
+                'Heggie regularization is not implemented for non-HR4BP systems.');
+
             % diff_g_q1 = ((2*q(1) - 2*r2(1))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(1) - r2(1))/r12 + (q(1) - r3(1))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(1) - 2*r3(1))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
             % diff_g_q2 = ((2*q(1) - 2*r2(2))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(1) - r2(2))/r12 + (q(1) - r3(2))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(1) - 2*r3(2))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
             % diff_g_q3 = ((2*q(3) - 2*r2(3))*r13*r23)/(2*r12*(r12 + r13 + r23)^(3/2)) - (3*((q(3) - r2(3))/r12 + (q(3) - r3(3))/r13)*r12*r13*r23)/(2*(r12 + r13 + r23)^(5/2)) + ((2*q(3) - 2*r3(3))*r12*r23)/(2*r13*(r12 + r13 + r23)^(3/2));
 
-            Hp = obj.prob.DS.Hp([q;p])';
-            %G = -1/g * [diff_g_q1; diff_g_q2; diff_g_q3]' * Hp(1:3)';
-            G = -1/g * diff_g_q * Hp(1:3)';
+            % Hp = obj.prob.DS.Hp([q;p])';
+            % G = -1/g * [diff_g_q1; diff_g_q2; diff_g_q3]' * Hp(1:3)';
         end
 
         % --- Propagation method ---
