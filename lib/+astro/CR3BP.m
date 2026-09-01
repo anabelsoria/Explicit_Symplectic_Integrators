@@ -508,6 +508,138 @@ classdef CR3BP < astro.DynamicalSystem
             p_n1 = [p_n1_1; p_n1_2; p_n1_3];
         end
 
+        % ---------------------------------------------------------------
+        % Double-double (dd) precision kernels, ported from
+        % CHANCE\src\SI2_CR3BP_Scheme2_dd_onetimestep.m and
+        % SI4_CR3BP_5stage_ddInc.m. State-only: no STM/monodromy (for that,
+        % see SI2_CR3BP_onetimestep_Scheme2_full_DD.m, kept standalone --
+        % it propagates the STM in dd too, using its own self-contained
+        % helper set, and is a separate feature from the state-only
+        % precision ladder here). Both reuse the class's existing dd
+        % arithmetic toolkit in methods (Static) below, which already used
+        % the same [hi,lo] pair convention as CHANCE's own dd_add/dd_mul --
+        % no convention reconciliation was actually needed.
+        % ---------------------------------------------------------------
+
+        function [xh,xl,ph,pl] = SI_EOM_dd(obj, dt, phi_l, xh, xl, ph, pl)
+            % State-only double-double variant of SI_EOM's scheme 2
+            % (Stormer-Verlet B): the T/D linear algebra runs in dd: force
+            % is still evaluated at double precision at the double-word
+            % part of x_n2, matching how SI_EOM_Expanded/ICS/CS all
+            % evaluate obj.partialU. Ported from CHANCE's
+            % SI2_CR3BP_Scheme2_dd_onetimestep.m (which used a
+            % separate-hi/lo-scalar calling convention for the same
+            % dd_add/dd_mul/TwoProd math); reciprocal here uses the
+            % class's existing dd_recip (Newton refinement) in place of
+            % CHANCE's dd_div(1,0,...), an equivalent way of computing the
+            % same reciprocal to double-double accuracy.
+            dt  = phi_l*dt;
+            hdt = dt/2;
+
+            %% den = 1 + hdt^2, inv_den = 1/den, hdt/den
+            hdt2   = obj.dd_mul([hdt,0], [hdt,0]);
+            den    = obj.dd_add([1,0], hdt2);
+            invden = obj.dd_recip(den);
+            hdtden = obj.dd_mul([hdt,0], invden);
+
+            %% v = x + hdt*p
+            v1 = obj.dd_add([xh(1),xl(1)], obj.dd_mul([hdt,0],[ph(1),pl(1)]));
+            v2 = obj.dd_add([xh(2),xl(2)], obj.dd_mul([hdt,0],[ph(2),pl(2)]));
+            v3 = obj.dd_add([xh(3),xl(3)], obj.dd_mul([hdt,0],[ph(3),pl(3)]));
+
+            %% x_n2 = Tinv * v
+            xn2_1 = obj.dd_add(obj.dd_mul(invden, v1), obj.dd_mul(hdtden, v2));
+            xn2_2 = obj.dd_add(obj.dd_mul(obj.dd_neg(hdtden), v1), obj.dd_mul(invden, v2));
+            xn2_3 = v3;
+
+            %% Force at x_n2, evaluated at double precision (high word only)
+            x_n2 = [xn2_1(1); xn2_2(1); xn2_3(1)];
+            dU = obj.partialU(x_n2);
+
+            %% w = D*p - dt*dU
+            w1 = obj.dd_add([ph(1),pl(1)], obj.dd_mul([hdt,0],[ph(2),pl(2)]));
+            w2 = obj.dd_add(obj.dd_mul([-hdt,0],[ph(1),pl(1)]), [ph(2),pl(2)]);
+            w3 = [ph(3),pl(3)];
+
+            w1 = obj.dd_add(w1, obj.dd_mul([-dt,0],[dU(1),0]));
+            w2 = obj.dd_add(w2, obj.dd_mul([-dt,0],[dU(2),0]));
+            w3 = obj.dd_add(w3, obj.dd_mul([-dt,0],[dU(3),0]));
+
+            %% p_n1 = Tinv * w
+            pn1_1 = obj.dd_add(obj.dd_mul(invden, w1), obj.dd_mul(hdtden, w2));
+            pn1_2 = obj.dd_add(obj.dd_mul(obj.dd_neg(hdtden), w1), obj.dd_mul(invden, w2));
+            pn1_3 = w3;
+
+            %% x_n1 = D*x_n2 + hdt*p_n1
+            g1 = obj.dd_add(xn2_1, obj.dd_mul([hdt,0], xn2_2));
+            g2 = obj.dd_add(obj.dd_mul([-hdt,0], xn2_1), xn2_2);
+
+            xn1_1 = obj.dd_add(g1, obj.dd_mul([hdt,0], pn1_1));
+            xn1_2 = obj.dd_add(g2, obj.dd_mul([hdt,0], pn1_2));
+            xn1_3 = obj.dd_add(xn2_3, obj.dd_mul([hdt,0], pn1_3));
+
+            %% Output
+            xh = [xn1_1(1); xn1_2(1); xn1_3(1)];
+            xl = [xn1_1(2); xn1_2(2); xn1_3(2)];
+            ph = [pn1_1(1); pn1_2(1); pn1_3(1)];
+            pl = [pn1_1(2); pn1_2(2); pn1_3(2)];
+        end
+
+        function [xh,xl,ph,pl] = SI_EOM_ddInc(obj, dt, phi_l, xh, xl, ph, pl)
+            % Double-double analogue of SI_EOM_ICS: the same algebraic
+            % increments as SI_EOM_Increment, but the state is carried as
+            % a double-double (xh,xl)/(ph,pl) pair and each increment is
+            % folded in error-free via obj.dd_accum (TwoSum + quickTwoSum
+            % renormalization) instead of Kahan compensation. Force is
+            % still evaluated at double precision at the compensated point
+            % xh+xl -- only the accumulation runs in extended precision,
+            % which is where round-off that grows with the step count
+            % enters. Ported from CHANCE's SI4_CR3BP_5stage_ddInc.m (this
+            % is its per-substep `step` kernel; the file's outer loop over
+            % phi_l and its `acc` helper are SI.m's composition loop and
+            % obj.dd_accum, respectively).
+            dt    = phi_l*dt;
+            hdt   = dt/2;
+            dt2_4 = 4 + dt^2;
+
+            x = xh + xl;
+            p = ph + pl;
+
+            %% Stage 1, x <- x_n2
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx3 = hdt*p(3);
+
+            [xh(1),xl(1)] = obj.dd_accum(xh(1),xl(1),dx1);
+            [xh(2),xl(2)] = obj.dd_accum(xh(2),xl(2),dx2);
+            [xh(3),xl(3)] = obj.dd_accum(xh(3),xl(3),dx3);
+
+            x = xh + xl;
+
+            %% Force at x_n2
+            dU = obj.partialU(x);
+
+            %% Stage 2, p <- p_n1
+            dp1 = dt*(-2*dt*p(1) + 4*p(2) - 4*dU(1) - 2*dt*dU(2))/dt2_4;
+            dp2 = dt*(-4*p(1) - 2*dt*p(2) + 2*dt*dU(1) - 4*dU(2))/dt2_4;
+            dp3 = -dt*dU(3);
+
+            [ph(1),pl(1)] = obj.dd_accum(ph(1),pl(1),dp1);
+            [ph(2),pl(2)] = obj.dd_accum(ph(2),pl(2),dp2);
+            [ph(3),pl(3)] = obj.dd_accum(ph(3),pl(3),dp3);
+
+            p = ph + pl;
+
+            %% Stage 3, x <- x_n1
+            dxx1 = hdt*(x(2) + p(1));
+            dxx2 = hdt*(p(2) - x(1));
+            dxx3 = hdt*p(3);
+
+            [xh(1),xl(1)] = obj.dd_accum(xh(1),xl(1),dxx1);
+            [xh(2),xl(2)] = obj.dd_accum(xh(2),xl(2),dxx2);
+            [xh(3),xl(3)] = obj.dd_accum(xh(3),xl(3),dxx3);
+        end
+
         function C = jacobiconstant(obj, sol)
             s = sol.x;
             if strcmp(sol.coord,'hamiltonian')
@@ -616,6 +748,18 @@ classdef CR3BP < astro.DynamicalSystem
             r = astro.CR3BP.dd_add(r, corr);
             [hi, lo] = astro.CR3BP.quickTwoSum(r(1), r(2));
             dd = [hi, lo];
+        end
+
+        function [zh, zl] = dd_accum(zh, zl, d)
+            % Error-free accumulation of a plain-double increment d into a
+            % double-double pair (zh,zl): TwoSum captures the rounding
+            % error of zh+d, then a quickTwoSum renormalization folds it
+            % back in. Used by SI_EOM_ddInc in place of Kahan compensation
+            % (comp_sum's dd counterpart). Ported from the local `acc`
+            % helper in CHANCE's SI4_CR3BP_5stage_ddInc.m.
+            [s, e] = astro.CR3BP.twoSum(zh, d);
+            zl = zl + e;
+            [zh, zl] = astro.CR3BP.quickTwoSum(s, zl);
         end
 
         % --- ERROR-FREE TRANSFORMS ---

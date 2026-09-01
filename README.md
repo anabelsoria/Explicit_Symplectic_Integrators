@@ -17,9 +17,9 @@ The codebase is organized using MATLAB classes for flexibility and extensibility
 ## Directory Structure
 
 - `lib/+astro/`: dynamical-system classes (`CR3BP`, `ER3BP`, `BCR4BP`, `HR4BP`, `TwoBody`) and orbital-element conversion utilities (`+conics`)
-  - `CR3BP`/`ER3BP` carry the compensated-summation precision ladder as methods alongside `SI_EOM`: `SI_EOM_Expanded`/`SI_EOM_Increment` (uncompensated baselines), `SI_EOM_ICS` (increment + compensated summation), `SI_EOM_CS` (full compensated summation), and — CR3BP only — `SI_EOM_TR_ICS`/`SI_EOM_TR_CS` (time-regularized versions of the same). Not yet wired into `SI`/`TimeRegularized` as a selectable `precision` option — that's a follow-up.
+  - `CR3BP`/`ER3BP` carry the precision ladder as methods alongside `SI_EOM`: `SI_EOM_Expanded`/`SI_EOM_Increment` (uncompensated baselines), `SI_EOM_ICS` (increment + compensated summation), `SI_EOM_CS` (full compensated summation), `SI_EOM_dd`/`SI_EOM_ddInc` (double-double: full closed-form and increment-form respectively, CR3BP only), and — CR3BP only — `SI_EOM_TR_ICS`/`SI_EOM_TR_CS` (time-regularized compensated-summation versions). Not yet wired into `SI`/`TimeRegularized` as a selectable `precision` option — that's a follow-up. `CR3BP.m` also carries a `methods (Static)` double-double arithmetic toolkit (`dd_add`, `dd_mul`, `dd_recip`, `dd_accum`, `twoSum`, `twoProd`, ...) used by `SI_EOM_dd`/`SI_EOM_ddInc`.
 - `lib/integrators/`: the integrator classes (`SI`, `RK`, `TimeRegularized`, `Integrator`)
-  - `lib/integrators/precision/CR3BP/`: the double-double (`dd`) precision variants, still standalone (not yet folded into `CR3BP` — they use a different calling convention, ported more carefully as a separate step)
+  - `lib/integrators/precision/CR3BP/`: only the STM/monodromy-in-dd variant remains standalone here (`SI2_CR3BP_onetimestep_Scheme2_full_DD.m` + its `dd_matmul.m` dependency) — deliberately not folded in, since it propagates the STM in double-double, a different feature from the state-only precision ladder now living in `CR3BP.m`.
 - `lib/utils/`: shared numerical helpers (`comp_sum`, double-double arithmetic, plotting)
 
 Example/driver scripts (`Example_TBP/`, `Example_CR3BP/`, etc.) are still at their original top-level locations pending a separate reorganization pass.
