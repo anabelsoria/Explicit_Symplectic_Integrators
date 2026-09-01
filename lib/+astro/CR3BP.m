@@ -280,6 +280,328 @@ classdef CR3BP < astro.DynamicalSystem
 
         end
 
+
+        % ---------------------------------------------------------------
+        % Precision-ladder one-timestep kernels (Scheme 2), ported from
+        % CHANCE\src\SI2_CR3BP_onetimestep_Scheme2_*.m and
+        % CHANCE\src\SI4_5stage_CR3BP_Scheme2_integrating_controller_*.m.
+        % Not yet wired into SI.propagate/TimeRegularized.propagate as a
+        % selectable 'precision' option -- that is a follow-up pass.
+        % The double-double ('dd') variants are not folded in here yet;
+        % they still live as standalone files under
+        % lib/integrators/precision/CR3BP/ pending a more careful port.
+        % ---------------------------------------------------------------
+
+        function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
+            % Uncompensated hand-expanded scalar form of the Scheme 2 update,
+            % 0 compensated additions. Control case for isolating the cost of
+            % compensation against SI_EOM_CS, which evaluates the identical
+            % expressions.
+            dt  = phi_l*dt;
+            hdt = dt/2;
+            dt2_4 = 4 + dt^2;
+
+            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2)) / (dt^2+4)
+            s1 = 4*x(1) + 2*dt*p(1);
+            s2 = s1 + 2*dt*x(2);
+            s3 = s2 + dt^2*p(2);
+            x_n2_1 = s3/dt2_4;
+
+            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2)) / (dt^2+4)
+            s1 = 4*x(2) + 2*dt*p(2);
+            s2 = s1 - 2*dt*x(1);
+            s3 = s2 - dt^2*p(1);
+            x_n2_2 = s3/dt2_4;
+
+            %% x_n2(3) = x(3) + hdt*p(3)
+            x_n2_3 = x(3) + hdt*p(3);
+
+            x_n2 = [x_n2_1; x_n2_2; x_n2_3];
+
+            %% Force at x_n2
+            dU = obj.partialU(x_n2);
+
+            %% p_n1(1)
+            s1 = dt^2*p(1) - 4*p(1);
+            s2 = s1 - 4*dt*p(2);
+            s3 = s2 + 4*dt*dU(1);
+            s4 = s3 + 2*dt^2*dU(2);
+            p_n1_1 = -s4/dt2_4;
+
+            %% p_n1(2)
+            s1 = 4*dt*p(1) - 4*p(2);
+            s2 = s1 + dt^2*p(2);
+            s3 = s2 - 2*dt^2*dU(1);
+            s4 = s3 + 4*dt*dU(2);
+            p_n1_2 = -s4/dt2_4;
+
+            %% p_n1(3) = p(3) - dt*dU(3)
+            p_n1_3 = p(3) - dt*dU(3);
+
+            %% x_n1(1) = x_n2(1) + hdt*x_n2(2) + hdt*p_n1(1)
+            s1 = x_n2_1 + hdt*x_n2_2;
+            x_n1_1 = s1 + hdt*p_n1_1;
+
+            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2)
+            s1 = x_n2_2 - hdt*x_n2_1;
+            x_n1_2 = s1 + hdt*p_n1_2;
+
+            %% x_n1(3) = x_n2(3) + hdt*p_n1(3)
+            x_n1_3 = x_n2_3 + hdt*p_n1_3;
+
+            x_n1 = [x_n1_1; x_n1_2; x_n1_3];
+            p_n1 = [p_n1_1; p_n1_2; p_n1_3];
+        end
+
+        function [x,p] = SI_EOM_Increment(obj, dt, phi_l, x, p)
+            % Same algebraic-increment reformulation as SI_EOM_ICS, but
+            % accumulated by ordinary addition (0 compensated additions).
+            % Isolates the effect of the increment formulation alone.
+            dt    = phi_l*dt;
+            hdt   = dt/2;
+            dt2_4 = 4 + dt^2;
+
+            %% Stage 1, x <- x_n2
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx3 = hdt*p(3);
+
+            x(1) = x(1) + dx1;
+            x(2) = x(2) + dx2;
+            x(3) = x(3) + dx3;
+
+            %% Force at x_n2
+            dU = obj.partialU(x);
+
+            %% Stage 2, p <- p_n1
+            dp1 = dt*(-2*dt*p(1) + 4*p(2) - 4*dU(1) - 2*dt*dU(2))/dt2_4;
+            dp2 = dt*(-4*p(1) - 2*dt*p(2) + 2*dt*dU(1) - 4*dU(2))/dt2_4;
+            dp3 = -dt*dU(3);
+
+            p(1) = p(1) + dp1;
+            p(2) = p(2) + dp2;
+            p(3) = p(3) + dp3;
+
+            %% Stage 3, x <- x_n1
+            dxx1 = hdt*(x(2) + p(1));
+            dxx2 = hdt*(p(2) - x(1));
+            dxx3 = hdt*p(3);
+
+            x(1) = x(1) + dxx1;
+            x(2) = x(2) + dxx2;
+            x(3) = x(3) + dxx3;
+        end
+
+        function [x,p,e_x,e_p] = SI_EOM_ICS(obj, dt, phi_l, x, p, e_x, e_p)
+            % "ICS" = Increment + Compensated Summation. Same increments as
+            % SI_EOM_Increment, accumulated with Kahan compensation (9
+            % compensated adds/step). Each increment is derived algebraically
+            % rather than by forming the updated value and subtracting --
+            % subtraction of nearly-equal floats is exact by Sterbenz, so
+            % recovering the increment that way would leave the compensation
+            % register empty and make the scheme a no-op.
+            dt  = phi_l*dt;
+            hdt = dt/2;
+            dt2_4 = 4 + dt^2;
+
+            %% Stage 1, x <- x_n2
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx3 = hdt*p(3);
+
+            [x(1), e_x(1)] = comp_sum(x(1),e_x(1),dx1);
+            [x(2), e_x(2)] = comp_sum(x(2),e_x(2),dx2);
+            [x(3), e_x(3)] = comp_sum(x(3),e_x(3),dx3);
+
+            %% Force at x_n2
+            dU = obj.partialU(x);
+
+            %% Stage 2, p <- p_n1
+            dp1 = dt*(-2*dt*p(1) + 4*p(2) - 4*dU(1) - 2*dt*dU(2))/dt2_4;
+            dp2 = dt*(-4*p(1) - 2*dt*p(2) + 2*dt*dU(1) - 4*dU(2))/dt2_4;
+            dp3 = -dt*dU(3);
+
+            [p(1), e_p(1)] = comp_sum(p(1),e_p(1),dp1);
+            [p(2), e_p(2)] = comp_sum(p(2),e_p(2),dp2);
+            [p(3), e_p(3)] = comp_sum(p(3),e_p(3),dp3);
+
+            %% Stage 3, x <- x_n1
+            dxx1 = hdt*(x(2) + p(1));
+            dxx2 = hdt*(p(2) - x(1));
+            dxx3 = hdt*p(3);
+
+            [x(1), e_x(1)] = comp_sum(x(1),e_x(1),dxx1);
+            [x(2), e_x(2)] = comp_sum(x(2),e_x(2),dxx2);
+            [x(3), e_x(3)] = comp_sum(x(3),e_x(3),dxx3);
+        end
+
+        function [x_n1,p_n1,e_x2,e_x,e_p,e_dt2_4] = SI_EOM_CS(obj, dt, phi_l, x, p, e_x2, e_x, e_p, e_dt2_4)
+            % "CS" = full closed-form update with Kahan compensation on every
+            % intermediate partial sum (22 compensated adds/step). More
+            % expensive and more precise than SI_EOM_ICS.
+            dt = phi_l*dt;
+            hdt = dt/2;
+
+            %% dt^2 + 4
+            [dt2_4, e_dt2_4] = comp_sum(4,e_dt2_4,dt^2);
+
+            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2)) / (dt^2+4)
+            [s1, e_x2(1)] = comp_sum(4*x(1),e_x2(1),2*dt*p(1));
+            [s2, e_x2(2)] = comp_sum(s1,e_x2(2),2*dt*x(2));
+            [s3, e_x2(3)] = comp_sum(s2,e_x2(3),dt^2*p(2));
+            x_n2_1 = s3/dt2_4;
+
+            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2)) / (dt^2+4)
+            [s1, e_x2(4)] = comp_sum(4*x(2),e_x2(4),2*dt*p(2));
+            [s2, e_x2(5)] = comp_sum(s1,e_x2(5),-2*dt*x(1));
+            [s3, e_x2(6)] = comp_sum(s2,e_x2(6),-dt^2*p(1));
+            x_n2_2 = s3/dt2_4;
+
+            %% x_n2(3) = x(3) + hdt*p(3)
+            [x_n2_3, e_x2(7)] = comp_sum(x(3),e_x2(7),hdt*p(3));
+
+            x_n2 = [x_n2_1; x_n2_2; x_n2_3];
+
+            %% Force at x_n2
+            dU = obj.partialU(x_n2);
+
+            %% p_n1(1) = -(dt^2*p(1) - 4*p(1) - 4*dt*p(2) + 4*dt*dU(1) + 2*dt^2*dU(2)) / (dt^2+4)
+            [s1, e_p(1)] = comp_sum(dt^2*p(1),e_p(1),-4*p(1));
+            [s2, e_p(2)] = comp_sum(s1,e_p(2),-4*dt*p(2));
+            [s3, e_p(3)] = comp_sum(s2,e_p(3),4*dt*dU(1));
+            [s4, e_p(4)] = comp_sum(s3,e_p(4),2*dt^2*dU(2));
+            p_n1_1 = -s4/dt2_4;
+
+            %% p_n1(2) = -(4*dt*p(1) - 4*p(2) + dt^2*p(2) - 2*dt^2*dU(1) + 4*dt*dU(2)) / (dt^2+4)
+            [s1, e_p(5)] = comp_sum(4*dt*p(1),e_p(5),-4*p(2));
+            [s2, e_p(6)] = comp_sum(s1,e_p(6),dt^2*p(2));
+            [s3, e_p(7)] = comp_sum(s2,e_p(7),-2*dt^2*dU(1));
+            [s4, e_p(8)] = comp_sum(s3,e_p(8),4*dt*dU(2));
+            p_n1_2 = -s4/dt2_4;
+
+            %% p_n1(3) = p(3) - dt*dU(3)
+            [p_n1_3, e_p(9)] = comp_sum(p(3),e_p(9),-dt*dU(3));
+
+            %% x_n1(1) = x_n2(1) + hdt*x_n2(2) + hdt*p_n1(1)
+            [s1, e_x(1)] = comp_sum(x_n2_1,e_x(1),hdt*x_n2_2);
+            [x_n1_1, e_x(2)] = comp_sum(s1,e_x(2),hdt*p_n1_1);
+
+            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2)
+            [s1, e_x(3)] = comp_sum(x_n2_2,e_x(3),-hdt*x_n2_1);
+            [x_n1_2, e_x(4)] = comp_sum(s1,e_x(4),hdt*p_n1_2);
+
+            %% x_n1(3) = x_n2(3) + hdt*p_n1(3)
+            [x_n1_3, e_x(5)] = comp_sum(x_n2_3,e_x(5),hdt*p_n1_3);
+
+            x_n1 = [x_n1_1; x_n1_2; x_n1_3];
+            p_n1 = [p_n1_1; p_n1_2; p_n1_3];
+        end
+
+        function [q_n1,p_n1,t_n1,e_q2,e_q,e_p,e_dt,e_t] = SI_EOM_TR_ICS(obj, epsilon, q, p, z_n2, tn, phi_l, e_q2, e_q, e_p, e_dt, e_t)
+            % Time-regularized ("integrating controller") counterpart of
+            % SI_EOM_ICS. Drives both the Sundman and Russell regularizations
+            % (TimeRegularized selects the G function; this kernel only cares
+            % about z_n2/dt).
+            dt = epsilon/z_n2 * phi_l;
+
+            % den = 1 + (dt/2*w)^2  (w=1)
+            [den, e_dt] = comp_sum(1,e_dt,(dt/2)^2);
+
+            T = 1/den * [1         dt/2   0;...
+                -dt/2      1      0;...
+                0            0      den];
+
+            D = [1         dt/2    0;...
+                -dt/2      1       0;...
+                0            0       1];
+
+            % q_n2 = T * (q + dt/2 * p - dt/2 * [0;1-mu;0]);
+            delta_q2 = dt/2 * (p - [0;1-obj.mu;0]);
+            [q_n2, e_q2] = comp_sum(q,e_q2,delta_q2);
+            q_n2 = T*q_n2;
+
+            % p_n1 = T*( D*p - dt * partialU(q_n2));
+            delta_pn1 = - dt * obj.partialU(q_n2);
+            [p_n1, e_p] = comp_sum(D*p,e_p,delta_pn1);
+            p_n1 = T * p_n1;
+
+            % q_n1 = D*q_n2 + dt/2 * p_n1 - dt/2 * [0;1-mu;0];
+            delta_qn1 = dt/2 * (p_n1 - [0;1-obj.mu;0]);
+            [q_n1, e_q] = comp_sum(D*q_n2,e_q,delta_qn1);
+
+            % t_n1 = tn + dt;
+            [t_n1, e_t] = comp_sum(tn,e_t,dt);
+        end
+
+        function [q_n1,p_n1,t_n1,e_q2,e_q,e_p,e_dt2_4,e_t] = SI_EOM_TR_CS(obj, epsilon, q, p, z_n2, tn, phi_l, e_q2, e_q, e_p, e_dt2_4, e_t)
+            % Time-regularized ("integrating controller") counterpart of
+            % SI_EOM_CS.
+            dt = epsilon/z_n2 * phi_l;
+            hdt = dt/2;
+            mu = obj.mu;
+            off2 = hdt*(1-mu);
+
+            %% dt^2 + 4
+            [dt2_4, e_dt2_4] = comp_sum(4,e_dt2_4,dt^2);
+
+            %% q_n2(1) = (4*q(1) + 2*dt*p(1) + 2*dt*q(2) + dt^2*p(2) - dt^2*(1-mu)) / (dt^2+4)
+            [s1, e_q2(1)] = comp_sum(4*q(1),e_q2(1),2*dt*p(1));
+            [s2, e_q2(2)] = comp_sum(s1,e_q2(2),2*dt*q(2));
+            [s3, e_q2(3)] = comp_sum(s2,e_q2(3),dt^2*p(2));
+            [s4, e_q2(4)] = comp_sum(s3,e_q2(4),-dt^2*(1-mu));
+            q_n2_1 = s4/dt2_4;
+
+            %% q_n2(2) = (-2*dt*q(1) - dt^2*p(1) + 4*q(2) + 2*dt*p(2) - 2*dt*(1-mu)) / (dt^2+4)
+            [s1, e_q2(5)] = comp_sum(4*q(2),e_q2(5),2*dt*p(2));
+            [s2, e_q2(6)] = comp_sum(s1,e_q2(6),-2*dt*q(1));
+            [s3, e_q2(7)] = comp_sum(s2,e_q2(7),-dt^2*p(1));
+            [s4, e_q2(8)] = comp_sum(s3,e_q2(8),-2*dt*(1-mu));
+            q_n2_2 = s4/dt2_4;
+
+            %% q_n2(3) = q(3) + hdt*p(3)
+            [q_n2_3, e_q2(9)] = comp_sum(q(3),e_q2(9),hdt*p(3));
+
+            q_n2 = [q_n2_1; q_n2_2; q_n2_3];
+
+            %% Force at q_n2
+            dU = obj.partialU(q_n2);
+
+            %% p_n1(1) = -(dt^2*p(1) - 4*p(1) - 4*dt*p(2) + 4*dt*dU(1) + 2*dt^2*dU(2)) / (dt^2+4)
+            [s1, e_p(1)] = comp_sum(dt^2*p(1),e_p(1),-4*p(1));
+            [s2, e_p(2)] = comp_sum(s1,e_p(2),-4*dt*p(2));
+            [s3, e_p(3)] = comp_sum(s2,e_p(3),4*dt*dU(1));
+            [s4, e_p(4)] = comp_sum(s3,e_p(4),2*dt^2*dU(2));
+            p_n1_1 = -s4/dt2_4;
+
+            %% p_n1(2) = -(4*dt*p(1) - 4*p(2) + dt^2*p(2) - 2*dt^2*dU(1) + 4*dt*dU(2)) / (dt^2+4)
+            [s1, e_p(5)] = comp_sum(4*dt*p(1),e_p(5),-4*p(2));
+            [s2, e_p(6)] = comp_sum(s1,e_p(6),dt^2*p(2));
+            [s3, e_p(7)] = comp_sum(s2,e_p(7),-2*dt^2*dU(1));
+            [s4, e_p(8)] = comp_sum(s3,e_p(8),4*dt*dU(2));
+            p_n1_2 = -s4/dt2_4;
+
+            %% p_n1(3) = p(3) - dt*dU(3)
+            [p_n1_3, e_p(9)] = comp_sum(p(3),e_p(9),-dt*dU(3));
+
+            %% q_n1(1) = q_n2(1) + hdt*q_n2(2) + hdt*p_n1(1)
+            [s1, e_q(1)] = comp_sum(q_n2_1,e_q(1),hdt*q_n2_2);
+            [q_n1_1, e_q(2)] = comp_sum(s1,e_q(2),hdt*p_n1_1);
+
+            %% q_n1(2) = q_n2(2) - hdt*q_n2(1) + hdt*p_n1(2) - off2
+            [s1, e_q(3)] = comp_sum(q_n2_2,e_q(3),-hdt*q_n2_1);
+            [s2, e_q(4)] = comp_sum(s1,e_q(4),hdt*p_n1_2);
+            [q_n1_2, e_q(5)] = comp_sum(s2,e_q(5),-off2);
+
+            %% q_n1(3) = q_n2(3) + hdt*p_n1(3)
+            [q_n1_3, e_q(6)] = comp_sum(q_n2_3,e_q(6),hdt*p_n1_3);
+
+            %% time
+            [t_n1, e_t] = comp_sum(tn,e_t,dt);
+
+            q_n1 = [q_n1_1; q_n1_2; q_n1_3];
+            p_n1 = [p_n1_1; p_n1_2; p_n1_3];
+        end
+
         function C = jacobiconstant(obj, sol)
             s = sol.x;
             if strcmp(sol.coord,'hamiltonian')
