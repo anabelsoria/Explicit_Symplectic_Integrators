@@ -17,18 +17,20 @@ classdef ER3BPOrbit
         nu0     % Hamiltonian initial conditions  
         Tp      % Orbit period
         DS      % Dynamical system object (i.e. ER3BP)
+        Nrevs
     end
-    
+
     methods
-        function obj = ER3BPOrbit(type,center)
+        function obj = ER3BPOrbit(type,center,Nrevs)
             % Constructor: initialize orbit parameters based on orbit type
-            
+
             import astro.Constants;
             import astro.ER3BP;
-            
+
             obj.type = type;
             obj.center = center;
-            
+            obj.Nrevs = Nrevs;
+
             % CR3BP characteristic properties (Earth-Moon system)
             LU = Constants.LU_EM;
             TU = Constants.TU_EM;

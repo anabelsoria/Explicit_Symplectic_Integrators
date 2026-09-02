@@ -20,9 +20,9 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 orbit_type = 'DRO_5_2';  % Specify orbit type (DRO_1_1, DRO_3_2, DRO_5_2, Halo_L2_2_1, Halo_L2_3_1)
 center     = 'bary';
-p = ER3BPOrbit(orbit_type, center);
-
 Nrevs = 1;          % Number of revolutions to propagate
+p = ER3BPOrbit(orbit_type, center, Nrevs);
+
 Nsteps = 1000;       % Number of time steps per revolution
 
 order  = 4;         % Integrators order
