@@ -24,7 +24,7 @@ blueMatlab = [0 0.4470 0.7410];
 orangeMatlab = [0.8500 0.3250 0.0980];
 %% ====================== Data Setup ======================
 
-orbit_type = 'DPO'; % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N,Lyapunov_L2)
+orbit_type = 'DRO'; % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N,Lyapunov_L2)
 center     = 'bary';
 Nrevs = 6;          % Number of revolutions to propagate
 

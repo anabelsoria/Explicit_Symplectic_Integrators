@@ -31,10 +31,10 @@ scheme = 2;
 % Define propagation parameters
 t0 = 0;                      % Initial time
 tf = Nrevs * p.Tp;           % Final time = Nrevs full orbital periods
-epsilon = 1;                 % Step size
+epsilon = 0.05;                 % Step size
 
 % -------------------- ODE --------------------
-opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); %odeset('RelTol', 1e-16, 'AbsTol', 1e-30);
+opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); 
 p.DS.integrator = @ode45;
 ODE_obj = Integrator(p,'RKF45');
 tic
@@ -44,6 +44,7 @@ sol_ode.t = sol_ode.x;
 sol_ode.x = sol_ode.y;
 sol_ode = rmfield(sol_ode,'y');
 sol_ode.nsteps = round(length(sol_ode.t)/Nrevs);
+sol_ode.coord = 'hamiltonian';
 ODE_obj.sol = sol_ode;
 
 % -------------------- SYMPLECTIC INTEGRATOR --------------------

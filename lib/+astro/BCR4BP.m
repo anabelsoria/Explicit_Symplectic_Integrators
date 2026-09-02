@@ -81,15 +81,18 @@ classdef BCR4BP < astro.DynamicalSystem
             mu2 = obj.mu_em;
 
             % The Distances from the larger and Smaller Primary
-            r13 = (x - obj.r1)^2 + y^2 + z^2;      % r13: distance to m1, LARGER MASS
-            r23 = (x - obj.r2)^2 + y^2 + z^2;      % r23: distance to m2, smaller mass
+            d1 = x - obj.r1;                       % d1: x offset from m1, LARGER MASS
+            d2 = x - obj.r2;                       % d2: x offset from m2, smaller mass
+
+            r13 = d1^2 + y^2 + z^2;
+            r23 = d2^2 + y^2 + z^2;
             r43 = (x - x4r)^2 + (y - y4)^2 + (z - z4)^2;
 
             % Partial Derivative of the Pseudo Potential Function
-            psi_x =  x - mu1*(x - obj.r1)/r13^(3/2) - mu2*(x - obj.r2)/r23^(3/2)...
+            psi_x =  mu1*d1*(1 - 1/r13^(3/2)) + mu2*d2*(1 - 1/r23^(3/2))...
                 - ( (obj.mu_s*x4)/obj.a_s^3 + obj.mu_s*(x - x4r)/r43^(3/2) );
 
-            psi_y =  y - (mu1*y)/r13^(3/2)  - (mu2*y)/r23^(3/2)...
+            psi_y =  mu1*y*(1 - 1/r13^(3/2)) + mu2*y*(1 - 1/r23^(3/2))...
                 - ((obj.mu_s*y4)/obj.a_s^3 + (obj.mu_s*(y - y4))/r43^(3/2));
 
             psi_z = - mu1*z/r13^(3/2) - (mu2*z)/r23^(3/2)...
@@ -120,18 +123,22 @@ classdef BCR4BP < astro.DynamicalSystem
 
             theta = obj.theta_0 + obj.theta_dot*p(4);
 
+            % Sun position relative to the current center (0 shift at bary)
             shift = 1 - obj.mu - obj.r2;
             xs = obj.a_s*cos(theta) - shift;
             ys = obj.a_s*sin(theta);
             zs = 0;
             r43 = sqrt( (q(1) - xs)^2 + (q(2) - ys)^2 + (q(3) - zs)^2) ;
 
+            % qb is barycentric, matching p (see xi2nu)
+            qb = q(1) + shift;
+            c  = q(2)*cos(theta) - qb*sin(theta);
+
             Hp = [p(1) + q(2);...
-                p(2) - q(1);...
+                p(2) - qb  ;...
                 p(3)       ;...
-                (obj.mu_s*obj.theta_dot*(q(2)*cos(theta) - q(1)*sin(theta)))/obj.a_s^2 ...
-                - (obj.a_s*obj.mu_s*obj.theta_dot*(q(2)*cos(theta) ...
-                - q(1)*sin(theta)))/r43^3];
+                (obj.mu_s*obj.theta_dot*c)/obj.a_s^2 ...
+                - (obj.a_s*obj.mu_s*obj.theta_dot*c)/r43^3];
         end
 
         function Hq = Hq(obj,s)
@@ -221,7 +228,7 @@ classdef BCR4BP < astro.DynamicalSystem
 
                     p_n1(1:3) = T*( D*p(1:3,1) - dt/2 *  (-dU_n - dU_n1) );
 
-                    q_n1 = q_n2 + dt/2*obj.Hp([q_n2; p_n1-[0;1-obj.mu - obj.r2;0;0]]);
+                    q_n1 = q_n2 + dt/2*obj.Hp([q_n2; p_n1]);
             end
 
         end
@@ -251,19 +258,25 @@ classdef BCR4BP < astro.DynamicalSystem
             y4 = obj.a_s * sin(theta);
             z4 = zeros(size(theta));
 
+            % Sun position relative to the current center (0 shift at bary)
+            shift = 1 - obj.mu - obj.r2;
+            x4r = x4 - shift;
+
             % Distances
             r13 = sqrt((qx - obj.r1).^2 + qy.^2 + qz.^2);
             r23 = sqrt((qx - obj.r2).^2 + qy.^2 + qz.^2);
-            r43 = sqrt((qx - x4).^2 + (qy - y4).^2 + (qz - z4).^2);
+            r43 = sqrt((qx - x4r).^2 + (qy - y4).^2 + (qz - z4).^2);
+
+            % qxb is barycentric, matching p (see xi2nu)
+            qxb = qx + shift;
 
             % Psi potential
-            psi = 0.5*(qx.^2 + qy.^2) + mu1./r13 + mu2./r23 + ...
+            psi = 0.5*(qxb.^2 + qy.^2) + mu1./r13 + mu2./r23 + ...
                 (obj.mu_s ./ r43 ...
-                - obj.mu_s ./ obj.a_s.^3 .* (x4 .* qx + y4 .* qy + z4 .* qz));
+                - obj.mu_s ./ obj.a_s.^3 .* (x4 .* qxb + y4 .* qy + z4 .* qz));
 
             % Hamiltonian
-            % H = 2*psi - ((px + qy).^2 + (py - qx).^2 + pz.^2); % Stephen
-            H = 1/2 * ((px + qy).^2 + (py - qx).^2 + pz.^2) - psi - qt; 
+            H = 1/2 * ((px + qy).^2 + (py - qxb).^2 + pz.^2) - psi - qt;
         end
 
         function xi = nu2xi(obj,nu)

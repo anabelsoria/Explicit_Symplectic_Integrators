@@ -54,11 +54,14 @@ classdef CR3BP < astro.DynamicalSystem
                 x = s(1); y = s(2);
                 xDot = s(3); yDot = s(4);
 
-                r13 = ((x - obj.r1)^2 + y^2)^1.5;
-                r23 = ((x - obj.r2)^2 + y^2)^1.5;
+                d1 = x - obj.r1;
+                d2 = x - obj.r2;
 
-                Ux = x - mu1 * (x - obj.r1) / r13 - mu2 * (x - obj.r2) / r23;
-                Uy = y - mu1 * y / r13 - mu2 * y / r23;
+                r13 = (d1^2 + y^2)^1.5;
+                r23 = (d2^2 + y^2)^1.5;
+
+                Ux = mu1 * d1 * (1 - 1/r13) + mu2 * d2 * (1 - 1/r23);
+                Uy = mu1 * y  * (1 - 1/r13) + mu2 * y  * (1 - 1/r23);
 
                 xDDot = 2 * yDot + Ux;
                 yDDot = -2 * xDot + Uy;
@@ -68,14 +71,17 @@ classdef CR3BP < astro.DynamicalSystem
                 x = s(1); y = s(2); z = s(3);
                 xDot = s(4); yDot = s(5); zDot = s(6);
 
-                r13 = (x - obj.r1)^2 + y^2 + z^2;
-                r23 = (x - obj.r2)^2 + y^2 + z^2;
+                d1 = x - obj.r1;
+                d2 = x - obj.r2;
+
+                r13 = d1^2 + y^2 + z^2;
+                r23 = d2^2 + y^2 + z^2;
 
                 r13 = r13^1.5;
                 r23 = r23^1.5;
 
-                Ux = x - mu1 * (x - obj.r1) / r13 - mu2 * (x - obj.r2) / r23;
-                Uy = y - mu1 * y / r13 - mu2 * y / r23;
+                Ux = mu1 * d1 * (1 - 1/r13) + mu2 * d2 * (1 - 1/r23);
+                Uy = mu1 * y  * (1 - 1/r13) + mu2 * y  * (1 - 1/r23);
                 Uz = -mu1 * z / r13 - mu2 * z / r23;
 
                 xDDot = 2 * yDot + Ux;
@@ -164,7 +170,7 @@ classdef CR3BP < astro.DynamicalSystem
             switch scheme
                 case 1 % Stormer-Verlet A
                     p_n2 = T * (p - dt2 * obj.partialU(q));
-                    q_n1 = T * (D * q + dt * p_n2);
+                    q_n1 = T * (D * q + dt * (p_n2 - [0; 1-obj.mu - obj.r2;0]));
                     p_n1 = D * p_n2 - dt2 * obj.partialU(q_n1);
 
                 case 2 % Stormer-Verlet B
@@ -177,21 +183,23 @@ classdef CR3BP < astro.DynamicalSystem
 
 
         % Precision-ladder kernels for Scheme 2 (Stormer-Verlet B).
+        % Shift s = 1-mu-r2 is 0 at bary, 1-mu at p2.
 
         function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
             % Uncompensated scalar form. Baseline for SI_EOM_CS.
             dt  = phi_l*dt;
             hdt = dt/2;
             dt2_4 = 4 + dt^2;
+            s = 1 - obj.mu - obj.r2;
 
-            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2)) / (dt^2+4)
+            %% x_n2(1) = (4*x(1) + 2*dt*p(1) + 2*dt*x(2) + dt^2*p(2) - dt^2*s) / (dt^2+4)
             s1 = 4*x(1) + 2*dt*p(1);
             s2 = s1 + 2*dt*x(2);
-            s3 = s2 + dt^2*p(2);
+            s3 = s2 + dt^2*(p(2) - s);
             x_n2_1 = s3/dt2_4;
 
-            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2)) / (dt^2+4)
-            s1 = 4*x(2) + 2*dt*p(2);
+            %% x_n2(2) = (-2*dt*x(1) - dt^2*p(1) + 4*x(2) + 2*dt*p(2) - 2*dt*s) / (dt^2+4)
+            s1 = 4*x(2) + 2*dt*(p(2) - s);
             s2 = s1 - 2*dt*x(1);
             s3 = s2 - dt^2*p(1);
             x_n2_2 = s3/dt2_4;
@@ -225,9 +233,9 @@ classdef CR3BP < astro.DynamicalSystem
             s1 = x_n2_1 + hdt*x_n2_2;
             x_n1_1 = s1 + hdt*p_n1_1;
 
-            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2)
+            %% x_n1(2) = x_n2(2) - hdt*x_n2(1) + hdt*p_n1(2) - hdt*s
             s1 = x_n2_2 - hdt*x_n2_1;
-            x_n1_2 = s1 + hdt*p_n1_2;
+            x_n1_2 = s1 + hdt*(p_n1_2 - s);
 
             %% x_n1(3) = x_n2(3) + hdt*p_n1(3)
             x_n1_3 = x_n2_3 + hdt*p_n1_3;
@@ -241,10 +249,11 @@ classdef CR3BP < astro.DynamicalSystem
             dt    = phi_l*dt;
             hdt   = dt/2;
             dt2_4 = 4 + dt^2;
+            s = 1 - obj.mu - obj.r2;
 
             %% Stage 1, x <- x_n2
-            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
-            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1) - dt*s)/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2) - 2*s)/dt2_4;
             dx3 = hdt*p(3);
 
             x(1) = x(1) + dx1;
@@ -265,7 +274,7 @@ classdef CR3BP < astro.DynamicalSystem
 
             %% Stage 3, x <- x_n1
             dxx1 = hdt*(x(2) + p(1));
-            dxx2 = hdt*(p(2) - x(1));
+            dxx2 = hdt*(p(2) - x(1) - s);
             dxx3 = hdt*p(3);
 
             x(1) = x(1) + dxx1;
@@ -275,8 +284,6 @@ classdef CR3BP < astro.DynamicalSystem
 
         function [x,p,e_x,e_p] = SI_EOM_ICS(obj, dt, phi_l, x, p, e_x, e_p)
             % Increment + Kahan-compensated summation (9 adds/step).
-            % Center-agnostic via obj.r2, same as SI_EOM: shift s=1-mu-r2
-            % is 0 at bary, 1-mu at p2.
             dt  = phi_l*dt;
             hdt = dt/2;
             dt2_4 = 4 + dt^2;
@@ -315,8 +322,7 @@ classdef CR3BP < astro.DynamicalSystem
 
         function [x_n1,p_n1,e_x2,e_x,e_p,e_dt2_4] = SI_EOM_CS(obj, dt, phi_l, x, p, e_x2, e_x, e_p, e_dt2_4)
             % Closed-form update, Kahan-compensated on every partial sum
-            % (24 adds/step). Center-agnostic like SI_EOM_ICS.
-            % e_x2 is 9 slots, e_x is 6.
+            % (24 adds/step). e_x2 is 9 slots, e_x is 6.
             dt = phi_l*dt;
             hdt = dt/2;
             s = 1 - obj.mu - obj.r2;
@@ -387,6 +393,7 @@ classdef CR3BP < astro.DynamicalSystem
             % force still evaluated at double precision.
             dt  = phi_l*dt;
             hdt = dt/2;
+            s   = 1 - obj.mu - obj.r2;
 
             %% den = 1 + hdt^2, inv_den = 1/den, hdt/den
             hdt2   = dd_mul([hdt,0], [hdt,0]);
@@ -394,9 +401,9 @@ classdef CR3BP < astro.DynamicalSystem
             invden = dd_recip(den);
             hdtden = dd_mul([hdt,0], invden);
 
-            %% v = x + hdt*p
+            %% v = x + hdt*(p - [0;s;0])
             v1 = dd_add([xh(1),xl(1)], dd_mul([hdt,0],[ph(1),pl(1)]));
-            v2 = dd_add([xh(2),xl(2)], dd_mul([hdt,0],[ph(2),pl(2)]));
+            v2 = dd_add([xh(2),xl(2)], dd_mul([hdt,0],dd_sub([ph(2),pl(2)],[s,0])));
             v3 = dd_add([xh(3),xl(3)], dd_mul([hdt,0],[ph(3),pl(3)]));
 
             %% x_n2 = Tinv * v
@@ -422,12 +429,12 @@ classdef CR3BP < astro.DynamicalSystem
             pn1_2 = dd_add(dd_mul(dd_neg(hdtden), w1), dd_mul(invden, w2));
             pn1_3 = w3;
 
-            %% x_n1 = D*x_n2 + hdt*p_n1
+            %% x_n1 = D*x_n2 + hdt*(p_n1 - [0;s;0])
             g1 = dd_add(xn2_1, dd_mul([hdt,0], xn2_2));
             g2 = dd_add(dd_mul([-hdt,0], xn2_1), xn2_2);
 
             xn1_1 = dd_add(g1, dd_mul([hdt,0], pn1_1));
-            xn1_2 = dd_add(g2, dd_mul([hdt,0], pn1_2));
+            xn1_2 = dd_add(g2, dd_mul([hdt,0], dd_sub(pn1_2,[s,0])));
             xn1_3 = dd_add(xn2_3, dd_mul([hdt,0], pn1_3));
 
             %% Output
@@ -443,13 +450,14 @@ classdef CR3BP < astro.DynamicalSystem
             dt    = phi_l*dt;
             hdt   = dt/2;
             dt2_4 = 4 + dt^2;
+            s = 1 - obj.mu - obj.r2;
 
             x = xh + xl;
             p = ph + pl;
 
             %% Stage 1, x <- x_n2
-            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1))/dt2_4;
-            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2))/dt2_4;
+            dx1 = dt*(2*p(1) + 2*x(2) + dt*p(2) - dt*x(1) - dt*s)/dt2_4;
+            dx2 = dt*(2*p(2) - 2*x(1) - dt*p(1) - dt*x(2) - 2*s)/dt2_4;
             dx3 = hdt*p(3);
 
             [xh(1),xl(1)] = dd_accum(xh(1),xl(1),dx1);
@@ -474,7 +482,7 @@ classdef CR3BP < astro.DynamicalSystem
 
             %% Stage 3, x <- x_n1
             dxx1 = hdt*(x(2) + p(1));
-            dxx2 = hdt*(p(2) - x(1));
+            dxx2 = hdt*(p(2) - x(1) - s);
             dxx3 = hdt*p(3);
 
             [xh(1),xl(1)] = dd_accum(xh(1),xl(1),dxx1);

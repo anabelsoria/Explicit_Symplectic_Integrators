@@ -168,8 +168,8 @@ classdef ER3BP < astro.DynamicalSystem
         end
 
 
-        % Precision-ladder kernels. Bary-centered (no p2 shift), unlike
-        % SI_EOM above which assumes center='p2'.
+        % Precision-ladder kernels.
+        % Shift s = 1-mu-r2 is 0 at bary, 1-mu at p2.
 
         function [q,p,e_q,e_p] = SI_EOM_ICS(obj, dt, phi_l, q, p, e_q, e_p)
             % Increment + Kahan-compensated summation. Spatial increments
@@ -181,10 +181,11 @@ classdef ER3BP < astro.DynamicalSystem
             h   = phi_l*dt;
             hd  = h/2;
             d4  = h*h + 4;
+            s   = 1 - obj.mu - obj.r2;
 
             %% Stage 1, q(1:3) advances to q_n2. Increments formed before any update.
-            dq1 = h*( 2*p(1) + 2*q(2) + h*p(2) - h*q(1) )/d4;
-            dq2 = h*( 2*p(2) - 2*q(1) - h*p(1) - h*q(2) )/d4;
+            dq1 = h*( 2*p(1) + 2*q(2) + h*p(2) - h*q(1) - h*s )/d4;
+            dq2 = h*( 2*p(2) - 2*q(1) - h*p(1) - h*q(2) - 2*s )/d4;
             dq3 = hd*p(3);
 
             [q(1), e_q(1)] = comp_sum(q(1),e_q(1),dq1);
@@ -195,7 +196,9 @@ classdef ER3BP < astro.DynamicalSystem
             n1 = q(1);  n2 = q(2);  n3 = q(3);
             qn2 = [n1;n2;n3];
 
-            W  = n1*n1 + n2*n2 + n3*n3 - 2*obj.U(qn2);
+            qs = qn2 + [s;0;0];   % barycentric
+
+            W  = (n1+s)^2 + n2*n2 + n3*n3 - 2*obj.U(qn2);
             dU = obj.partialU(qn2);
 
             %% Stage 1b, the coordinate conjugate to the true anomaly
@@ -209,8 +212,8 @@ classdef ER3BP < astro.DynamicalSystem
             nu2 = p(4);
             c2  = cos(nu2);
 
-            G = hd*( (ec*c *qn2 + dU)/(1 + ec*c ) ...
-                   + (ec*c2*qn2 + dU)/(1 + ec*c2) );
+            G = hd*( (ec*c *qs + dU)/(1 + ec*c ) ...
+                   + (ec*c2*qs + dU)/(1 + ec*c2) );
 
             den = 1 + hd*hd;
             dp1 = ( -h*hd*p(1) + h*p(2) - G(1) - hd*G(2) )/den;
@@ -223,7 +226,7 @@ classdef ER3BP < astro.DynamicalSystem
 
             %% Stage 3, q(1:3) advances to q_n1 using q_n2 and the updated momenta
             dr1 = hd*( n2 + p(1) );
-            dr2 = hd*( p(2) - n1 );
+            dr2 = hd*( p(2) - n1 - s );
             dr3 = hd*p(3);
 
             [q(1), e_q(1)] = comp_sum(q(1),e_q(1),dr1);
@@ -241,6 +244,9 @@ classdef ER3BP < astro.DynamicalSystem
             e  = obj.e;
 
             dt = phi_l*dt;
+            s  = 1 - obj.mu - obj.r2;
+            sv = [0;s;0];
+            so = [s;0;0];
 
             [den, e_dt] = comp_sum(1,e_dt,(dt/2)^2);
 
@@ -252,23 +258,23 @@ classdef ER3BP < astro.DynamicalSystem
                 -dt/2      1       0;...
                 0            0       1];
 
-            % q_n2 = T * (q(1:3) + dt/2 * p(1:3));
-            delta_q2 = dt/2 * p(1:3,1);
+            % q_n2 = T * (q(1:3) + dt/2 * (p(1:3) - sv));
+            delta_q2 = dt/2 * (p(1:3,1) - sv);
             [q_n2, e_q2] = comp_sum(T*q(1:3,1),e_q2,T*delta_q2);
-            q_n2(4) = q(4) - dt/2 * e/2*sin(p(4))/(1+e*cos(p(4)))^2 * ( norm(q_n2(1:3))^2 - 2*obj.U(q_n2));
+            q_n2(4) = q(4) - dt/2 * e/2*sin(p(4))/(1+e*cos(p(4)))^2 * ( norm(q_n2(1:3)+so)^2 - 2*obj.U(q_n2));
 
             p_n1 = zeros(4,1);
             p_n1(4) = p(4) + dt;
             p_n1(1:3) = T*( D*p(1:3,1) ...
-                - dt/2 * 1/(1+e*cos(p(4)))   * (e*cos(p(4)) *q_n2(1:3,1) + obj.partialU(q_n2)) +...
-                - dt/2 * 1/(1+e*cos(p_n1(4)))* (e*cos(p_n1(4))*q_n2(1:3,1) + obj.partialU(q_n2)));
+                - dt/2 * 1/(1+e*cos(p(4)))   * (e*cos(p(4)) *(q_n2(1:3,1)+so) + obj.partialU(q_n2)) +...
+                - dt/2 * 1/(1+e*cos(p_n1(4)))* (e*cos(p_n1(4))*(q_n2(1:3,1)+so) + obj.partialU(q_n2)));
 
             q_n1 = zeros(4,1);
-            % q_n1(1:3) = D*q_n2(1:3) + dt/2 * p_n1(1:3);
-            delta_q = dt/2 * p_n1(1:3,1);
+            % q_n1(1:3) = D*q_n2(1:3) + dt/2 * (p_n1(1:3) - sv);
+            delta_q = dt/2 * (p_n1(1:3,1) - sv);
             [q_n1(1:3), e_q] = comp_sum(D*q_n2(1:3,1),e_q,delta_q);
 
-            q_n1(4)   = q_n2(4) - dt/2 * e/2*sin(p_n1(4))/(1+e*cos(p_n1(4)))^2 * (norm(q_n2(1:3))^2 - 2*obj.U(q_n2));
+            q_n1(4)   = q_n2(4) - dt/2 * e/2*sin(p_n1(4))/(1+e*cos(p_n1(4)))^2 * (norm(q_n2(1:3)+so)^2 - 2*obj.U(q_n2));
         end
 
         function K = kamiltonian(obj,sol)

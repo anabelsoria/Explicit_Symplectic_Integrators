@@ -38,7 +38,7 @@ classdef CR3BPOrbit
             mu = Constants.MU_EM;
             
             % Initialize CR3BP dynamical system object
-            obj.DS = CR3BP(mu,obj.center);
+            obj.DS = CR3BP(mu,obj.center,LU,TU);
             
             % Get initial conditions and period
             [obj.xi0, obj.Tp] = obj.IC_po(type);

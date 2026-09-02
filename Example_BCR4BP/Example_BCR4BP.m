@@ -19,7 +19,7 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 %% ====================== Data Setup ======================
 
 orbit_type = 'NRHO_3_1';  % Specify orbit type (NRHO_3_1, NRHO_9_2)
-center     = 'bary';
+center     = 'p2';
 p = BCR4BPOrbit(orbit_type, center);
 
 Nrevs = 1;          % Number of revolutions to propagate
@@ -35,7 +35,7 @@ tf = Nrevs * p.Tp;           % Final time = Nrevs full orbital periods
 dt = p.Tp / Nsteps;          % Step size
 
 % -------------------- ODE --------------------
-opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); %odeset('RelTol', 1e-16, 'AbsTol', 1e-30);
+opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); 
 p.DS.integrator = @ode45;
 ODE_obj = Integrator(p,'RKF45');
 tic
@@ -45,6 +45,7 @@ sol_ode.t = sol_ode.x;
 sol_ode.x = sol_ode.y;
 sol_ode = rmfield(sol_ode,'y');
 sol_ode.nsteps = round(length(sol_ode.t)/Nrevs);
+sol_ode.coord = 'hamiltonian';
 ODE_obj.sol = sol_ode;
 
 % -------------------- SYMPLECTIC INTEGRATOR --------------------

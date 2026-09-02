@@ -38,7 +38,7 @@ classdef ER3BPOrbit
             e  = Constants.e_EM;
             
             % Initialize ER3BP dynamical system object
-            obj.DS = ER3BP(mu,obj.center,e);
+            obj.DS = ER3BP(mu,obj.center,e,LU,TU);
             
             % Get initial conditions and period
             [obj.xi0, obj.Tp] = obj.IC_po(type);

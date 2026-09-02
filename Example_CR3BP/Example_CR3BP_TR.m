@@ -21,7 +21,7 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 orbit_type = 'Halo_L1_N'; % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N)
 center     = 'p2';  % 'bary', 'p2'
-Nrevs = 5000;       % Number of revolutions to propagate
+Nrevs = 1;       % Number of revolutions to propagate
 
 p = CR3BPOrbit(orbit_type,center, Nrevs);
 
