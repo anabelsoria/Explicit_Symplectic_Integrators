@@ -176,8 +176,7 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
 
-        % Precision-ladder kernels (Scheme 2), ported from CHANCE. Not yet
-        % wired into SI/TimeRegularized as a selectable 'precision' option.
+        % Precision-ladder kernels for Scheme 2 (Stormer-Verlet B).
 
         function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
             % Uncompensated scalar form. Baseline for SI_EOM_CS.
@@ -380,8 +379,8 @@ classdef CR3BP < astro.DynamicalSystem
             p_n1 = [p_n1_1; p_n1_2; p_n1_3];
         end
 
-        % Double-double (dd) precision kernels, ported from CHANCE.
-        % State-only, no STM (full_DD deferred). Toolkit in lib/utils/.
+        % Double-double (dd) precision kernels, state-only (no STM).
+        % Arithmetic toolkit lives in lib/utils/.
 
         function [xh,xl,ph,pl] = SI_EOM_dd(obj, dt, phi_l, xh, xl, ph, pl)
             % Scheme 2 (Stormer-Verlet B) with T/D linear algebra in dd;

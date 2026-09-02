@@ -168,24 +168,13 @@ classdef ER3BP < astro.DynamicalSystem
         end
 
 
-        % ---------------------------------------------------------------
-        % Precision-ladder one-timestep kernels, ported from
-        % CHANCE\ER3BP\src\SI2_ER3BP_onetimestep_CompSum*.m. Bary-centered
-        % (no p2 shift), unlike SI_EOM above which assumes center='p2' --
-        % same convention split as the CR3BP class. Thinner ladder than
-        % CR3BP: no Expanded/Increment/dd sibling exists yet for ER3BP.
-        % Not yet wired into SI.propagate/TimeRegularized.propagate as a
-        % selectable 'precision' option -- that is a follow-up pass.
-        % ---------------------------------------------------------------
+        % Precision-ladder kernels. Bary-centered (no p2 shift), unlike
+        % SI_EOM above which assumes center='p2'.
 
         function [q,p,e_q,e_p] = SI_EOM_ICS(obj, dt, phi_l, q, p, e_q, e_p)
-            % "ICS" = Increment + Compensated Summation. The spatial part
-            % has the same structure as the CR3BP Scheme 2 update, so the
-            % spatial increments carry over unchanged except that the single
-            % force term h*dU is replaced by G, evaluated before and after
-            % the true anomaly is advanced. The gradient is evaluated once
-            % and reused for both terms of G (the closed form calls
-            % partialU twice with the same argument, which is redundant).
+            % Increment + Kahan-compensated summation. Spatial increments
+            % match the CR3BP update; force term h*dU is replaced by G,
+            % evaluated before/after the true anomaly advances.
             mu = obj.mu;
             ec = obj.e;
 
@@ -247,9 +236,7 @@ classdef ER3BP < astro.DynamicalSystem
         end
 
         function [q_n1,p_n1,e_q2,e_q,e_dt] = SI_EOM_CS(obj, dt, phi_l, q, p, e_q2, e_q, e_dt)
-            % "CS" -- compensated summation on the spatial q update only
-            % (lighter than CR3BP's SI_EOM_CS, which compensates every
-            % partial sum; no CR3BP-style ExtCompSum exists yet for ER3BP).
+            % Compensated summation on the spatial q update only.
             mu = obj.mu;
             e  = obj.e;
 

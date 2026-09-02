@@ -17,7 +17,7 @@ The codebase is organized using MATLAB classes for flexibility and extensibility
 ## Directory Structure
 
 - `lib/+astro/`: dynamical-system classes (`CR3BP`, `ER3BP`, `BCR4BP`, `TwoBody`) and orbital-element conversion utilities (`+conics`)
-  - `CR3BP`/`ER3BP` also carry a precision ladder alongside `SI_EOM`: `SI_EOM_Expanded`/`Increment` (uncompensated), `SI_EOM_ICS`/`CS` (compensated), and (CR3BP only) `SI_EOM_dd`/`ddInc` (double-double). Not yet wired into `SI`/`TimeRegularized` as a selectable option.
+  - `CR3BP`/`ER3BP` also carry a precision ladder alongside `SI_EOM`: `SI_EOM_Expanded`/`Increment` (uncompensated), `SI_EOM_ICS`/`CS` (compensated), and (CR3BP only) `SI_EOM_dd`/`ddInc` (double-double).
 - `lib/integrators/`: the integrator classes (`SI`, `RK`, `TimeRegularized`, `Integrator`)
 - `lib/utils/`: shared numerical helpers -- `comp_sum`, a double-double arithmetic toolkit (one function per file), plotting helpers
 
