@@ -73,17 +73,21 @@ classdef BCR4BP < astro.DynamicalSystem
             y4 = obj.a_s*sin(theta);
             z4 = 0;
 
+            % Sun position relative to the current center (0 shift at bary)
+            shift = 1 - obj.mu - obj.r2;
+            x4r = x4 - shift;
+
             mu1 = 1 - obj.mu_em;
             mu2 = obj.mu_em;
 
             % The Distances from the larger and Smaller Primary
             r13 = (x - obj.r1)^2 + y^2 + z^2;      % r13: distance to m1, LARGER MASS
             r23 = (x - obj.r2)^2 + y^2 + z^2;      % r23: distance to m2, smaller mass
-            r43 = (x - x4)^2 + (y - y4)^2 + (z - z4)^2;
+            r43 = (x - x4r)^2 + (y - y4)^2 + (z - z4)^2;
 
             % Partial Derivative of the Pseudo Potential Function
             psi_x =  x - mu1*(x - obj.r1)/r13^(3/2) - mu2*(x - obj.r2)/r23^(3/2)...
-                - ( (obj.mu_s*x4)/obj.a_s^3 + obj.mu_s*(x - x4)/r43^(3/2) );
+                - ( (obj.mu_s*x4)/obj.a_s^3 + obj.mu_s*(x - x4r)/r43^(3/2) );
 
             psi_y =  y - (mu1*y)/r13^(3/2)  - (mu2*y)/r23^(3/2)...
                 - ((obj.mu_s*y4)/obj.a_s^3 + (obj.mu_s*(y - y4))/r43^(3/2));
@@ -116,7 +120,8 @@ classdef BCR4BP < astro.DynamicalSystem
 
             theta = obj.theta_0 + obj.theta_dot*p(4);
 
-            xs = obj.a_s*cos(theta);
+            shift = 1 - obj.mu - obj.r2;
+            xs = obj.a_s*cos(theta) - shift;
             ys = obj.a_s*sin(theta);
             zs = 0;
             r43 = sqrt( (q(1) - xs)^2 + (q(2) - ys)^2 + (q(3) - zs)^2) ;
@@ -157,17 +162,21 @@ classdef BCR4BP < astro.DynamicalSystem
             y4 = obj.a_s*sin(theta);
             z4 = 0;
 
+            % Sun position relative to the current center (0 shift at bary)
+            shift = 1 - obj.mu - obj.r2;
+            x4r = x4 - shift;
+
             mu1 = 1 - obj.mu_em;
             mu2 = obj.mu_em;
 
             % The Distances from the larger and Smaller Primary
             r13 = (x - obj.r1)^2 + y^2 + z^2;      % r13: distance to m1, LARGER MASS
             r23 = (x - obj.r2)^2 + y^2 + z^2;      % r23: distance to m2, smaller mass
-            r43 = (x - x4)^2 + (y - y4)^2 + (z - z4)^2;
+            r43 = (x - x4r)^2 + (y - y4)^2 + (z - z4)^2;
 
             % Partial Derivative of the Pseudo Potential Function
             psi_x = - mu1*(q(1) - obj.r1)/r13^(3/2) - mu2*(q(1) - obj.r2)/r23^(3/2)...
-                - ( (obj.mu_s*x4)/obj.a_s^3 + obj.mu_s*(q(1) - x4)/r43^(3/2) );
+                - ( (obj.mu_s*x4)/obj.a_s^3 + obj.mu_s*(q(1) - x4r)/r43^(3/2) );
 
             psi_y = - mu1*q(2)/r13^(3/2)  - (mu2*q(2))/r23^(3/2)...
                 - ((obj.mu_s*y4)/obj.a_s^3 + (obj.mu_s*(q(2) - y4))/r43^(3/2));
@@ -207,8 +216,8 @@ classdef BCR4BP < astro.DynamicalSystem
                     p_n1    = zeros(4,1);
                     p_n1(4) = p(4) + dt;
 
-                    dU_n  = obj.partialU(p(4),q_n2(1:3)+ [1-obj.mu - obj.r2;0;0]);
-                    dU_n1 = obj.partialU(p_n1(4),q_n2(1:3)+ [1-obj.mu - obj.r2;0;0]);
+                    dU_n  = obj.partialU(p(4),q_n2(1:3));
+                    dU_n1 = obj.partialU(p_n1(4),q_n2(1:3));
 
                     p_n1(1:3) = T*( D*p(1:3,1) - dt/2 *  (-dU_n - dU_n1) );
 
