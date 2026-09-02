@@ -190,7 +190,7 @@ classdef TimeRegularized < Integrator
                 z = z + h * G;
                 dt = h / z;
                 for jj = 1:length(obj.integrator.gamma)
-                    [q, p] = obj.integrator.prob.DS.SI_EOM_nomp(obj.integrator.gamma(jj)*dt, obj.integrator.scheme, [q; p]);
+                    [q, p] = obj.integrator.prob.DS.SI_EOM(obj.integrator.gamma(jj)*dt, obj.integrator.scheme, [q; p]);
                     t = t + obj.integrator.gamma(jj)*dt;
                 end
 
