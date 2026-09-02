@@ -19,11 +19,11 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'..')))
 
 %% ====================== Data Setup ======================
 
-orbit_type = 2;       % 1 or 2
+orbit_type = 1;       % 1 or 2
 main_body  = 'Earth';
-p = TBPOrbit(main_body,orbit_type);
-
 Nrevs  = 10;         % Number of revolutions to propagate
+p = TBPOrbit(main_body,orbit_type,Nrevs);
+
 Nsteps = 1000;       % Number of time steps per revolution
 
 order  = 8;         % Integrators order
