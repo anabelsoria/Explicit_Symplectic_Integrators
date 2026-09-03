@@ -17,11 +17,7 @@ clear; clc; close all;
 % Add all subfolders of the parent directory to the path
 addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
-purpleMatlab = [0.4940 0.1840 0.5560];
-yellowMatlab = [0.9290 0.6940 0.1250];
-greenMatlab  = [0.4660 0.6740 0.1880];
-blueMatlab = [0 0.4470 0.7410];
-orangeMatlab = [0.8500 0.3250 0.0980];
+c = plot_colors();
 %% ====================== Data Setup ======================
 
 orbit_type = 'DRO'; % Specify orbit type (DRO, NRHO_L2_S, Halo_L1_N,Lyapunov_L2)
@@ -86,21 +82,21 @@ ODE_obj.sol = sol_ode;
 
 % ------------------------ Plot Orbits -----------------------------
 ODE_obj.plot_traj(plot_2d_xy=true,font_size = 14,color='b')       
-SI_obj.plot_traj(fig = gcf,plot_2d_xy=true,font_size = 14,color=greenMatlab)                           
-RK_obj.plot_traj(fig = gcf,plot_2d_xy=true,font_size = 14,color=orangeMatlab)
+SI_obj.plot_traj(fig = gcf,plot_2d_xy=true,font_size = 14,color=c.green)                           
+RK_obj.plot_traj(fig = gcf,plot_2d_xy=true,font_size = 14,color=c.orange)
 
 % ------------------- Plot Jacobi Constant Drift -------------------
 % Plot the absolute Jacobi Constant difference from the initial value.
 ODE_obj.plot_conserved_quantity(quantity='jacobi',font_size = 14,color='b',show_steps = true)                           
-SI_obj.plot_conserved_quantity(fig = gcf,quantity='jacobi',font_size = 14,color=greenMatlab,show_steps = true)
-RK_obj.plot_conserved_quantity(fig = gcf,quantity='jacobi',font_size = 14,color=orangeMatlab,show_steps = true)
+SI_obj.plot_conserved_quantity(fig = gcf,quantity='jacobi',font_size = 14,color=c.green,show_steps = true)
+RK_obj.plot_conserved_quantity(fig = gcf,quantity='jacobi',font_size = 14,color=c.orange,show_steps = true)
 
 %% ------------------- Plot Error with ODE -------------------
 [~,ode_x] = p.DS.propagate(p.nu0,SI_obj.sol.t,opts,@(t,x)p.DS.Hamiltons_EOM(t,x));
 
 SI_state_error = vecnorm(SI_obj.sol.x-ode_x');
-SI_obj.plot_state_error(SI_state_error,font_size = 14,color=greenMatlab)
+SI_obj.plot_state_error(SI_state_error,font_size = 14,color=c.green)
 
 RK_state_error = vecnorm(RK_obj.sol.x-ode_x');
-RK_obj.plot_state_error(RK_state_error,fig=gcf,font_size = 14,color=orangeMatlab)
+RK_obj.plot_state_error(RK_state_error,fig=gcf,font_size = 14,color=c.orange)
 

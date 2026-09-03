@@ -14,16 +14,24 @@ classdef SI < Integrator
         order   % Order of the symplectic integrator (e.g., 2, 3, or 4)
         scheme  % Scheme selector for equations of motion
         gamma   % Gamma coefficients specific to the chosen integrator order
+        precision % Arithmetic used per step: 'double', 'ics', 'cs', or 'dd'
     end
 
     methods
 
-        function obj = SI(prob,order,scheme)
+        function obj = SI(prob,order,scheme,precision)
             % Constructor for the SI class
+            arguments
+                prob
+                order
+                scheme
+                precision = 'double' % 'double', 'ics' (Kahan), 'cs' (Kahan), or 'dd' (double-double)
+            end
             obj.name = "SI" + num2str(order);
             obj.prob     = prob;
             obj.order = order;
             obj.scheme = scheme;
+            obj.precision = precision;
             obj.gamma = obj.generateGamma(order);
         end
 
@@ -81,20 +89,42 @@ classdef SI < Integrator
             X(:,1) = obj.prob.nu0;
             q = (X(1:nq,1)); p = (X(nq+1:end,1));
 
-            e_dt = 0;
+            precision = lower(obj.precision);
+            if ~strcmp(precision,'double') && obj.scheme ~= 2
+                error('Precision "%s" is only implemented for scheme 2 (Stormer-Verlet B).', precision);
+            end
+
+            switch precision
+                case 'double'
+                case 'ics'
+                    obj.requireMethod('SI_EOM_ICS');
+                    e_x = zeros(nq,1); e_p = zeros(nq,1);
+                case 'cs'
+                    obj.requireMethod('SI_EOM_CS');
+                    e_x2 = zeros(9,1); e_x = zeros(6,1); e_p = zeros(9,1); e_dt2_4 = 0;
+                case 'dd'
+                    obj.requireMethod('SI_EOM_dd');
+                    xl = zeros(nq,1); pl = zeros(nq,1);
+                otherwise
+                    error('Unknown precision "%s". Choose double, ics, cs, or dd.', obj.precision);
+            end
+
             tic
             for ii = 2:nt
                 for jj = 1:length(obj.gamma)
-                    % [q,p,e_dt] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p],e_dt);
-                    [q,p] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p]);
+                    switch precision
+                        case 'double'
+                            [q,p] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p]);
+                        case 'ics'
+                            [q,p,e_x,e_p] = obj.prob.DS.SI_EOM_ICS(dt,obj.gamma(jj),q,p,e_x,e_p);
+                        case 'cs'
+                            [q,p,e_x2,e_x,e_p,e_dt2_4] = obj.prob.DS.SI_EOM_CS(dt,obj.gamma(jj),q,p,e_x2,e_x,e_p,e_dt2_4);
+                        case 'dd'
+                            [q,xl,p,pl] = obj.prob.DS.SI_EOM_dd(dt,obj.gamma(jj),q,xl,p,pl);
+                    end
                 end
                 X(1:nq,ii) = q;
                 X(nq+1:end,ii) = p;
-
-                % if abs(X(1,ii)) > 3
-                %     disp('Exploted')
-                %     continue
-                % end
             end
             obj.time_solver = toc;
 
@@ -106,6 +136,13 @@ classdef SI < Integrator
             if nargout > 0
                 varargout{1} = X;
                 varargout{2} = tspan;
+            end
+        end
+
+        function requireMethod(obj,name)
+            if ~ismethod(obj.prob.DS,name)
+                error('%s has no %s; precision "%s" is only available for classes that implement it.', ...
+                    class(obj.prob.DS), name, obj.precision);
             end
         end
 

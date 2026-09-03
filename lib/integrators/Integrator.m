@@ -86,7 +86,7 @@ classdef Integrator < handle
                 view(3)
             end
 
-            labels3d('LU'); %grid on;
+            labels3d('LU'); grid on; axis equal;
             legend('Interpreter', 'latex', 'Location','best');
             set(findall(gcf, '-property', 'FontSize'), 'FontSize', options.font_size);
 
@@ -102,6 +102,7 @@ classdef Integrator < handle
                 options.show_steps = false
                 options.color = []
                 options.time_scale = 'revs'
+                options.avg_per_rev = false  % average the fluctuation within each revolution
             end
 
             [dVal, label] = obj.get_conserved_fluctuation(options.quantity);
@@ -129,6 +130,13 @@ classdef Integrator < handle
                 ylab = 'Years';
             else
                 error('Time scale not implemented.')
+            end
+
+            if options.avg_per_rev
+                rev_idx = min(floor(num_revs) + 1, obj.prob.Nrevs);
+                dVal = accumarray(rev_idx(:), dVal(:), [obj.prob.Nrevs 1], @mean);
+                time = (1:obj.prob.Nrevs)';
+                ylab = 'Revolutions';
             end
 
             if num_revs(end) < obj.prob.Nrevs + 10
