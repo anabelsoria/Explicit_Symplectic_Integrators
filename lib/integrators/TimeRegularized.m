@@ -9,15 +9,34 @@ classdef TimeRegularized < Integrator
 
     methods
         function obj = TimeRegularized(integrator, method, reg_params)
+            arguments
+                integrator
+                method
+                reg_params = []
+            end
             obj.integrator = integrator;
             obj.prob       = integrator.prob;
-            obj.params     = reg_params;
             obj.name       = integrator.name + " " + method;
-            % obj.order       = integrator.order;
-            % obj.scheme       = integrator.scheme;
             obj.method     = method;
-            obj.reg_fun    = obj.select_time_regularization(method);
 
+            if isempty(reg_params)
+                reg_params = obj.default_params(method);
+            end
+            obj.params     = reg_params;
+
+            obj.reg_fun    = obj.select_time_regularization(method);
+        end
+
+        function params = default_params(obj, method)
+            % Default parameters when the caller doesn't supply their own.
+            switch lower(method)
+                case 'sundman'
+                    params.alpha = 3/2;
+                case 'russell'
+                    params = TimeRegularized.russell_default_params(obj.prob.DS.mu);
+                otherwise
+                    error('Unknown time regularization method.');
+            end
         end
 
         function reg_fun = select_time_regularization(obj,method)
@@ -287,6 +306,24 @@ classdef TimeRegularized < Integrator
 
             d_dtau = [dh_dtau;dt_dtau];
 
+        end
+    end
+
+    methods (Static)
+        function params = russell_default_params(mu)
+            % Default Russell regularization shape parameters, tuned
+            % separately around Earth (_E) and the Moon (_M).
+            A_E = 0.5;  B_E = 3;    C_E = 0.9;  alpha_E = 1;
+            rH_E = 1;
+
+            A_M = 0.45; B_M = 3.25; C_M = 0.9;  alpha_M = 3/2;
+            rH_M = (mu/3)^(1/3);
+
+            params.A_E = A_E; params.B_E = B_E; params.C_E = C_E;
+            params.rH_E = rH_E; params.alpha_E = alpha_E;
+
+            params.A_M = A_M; params.B_M = B_M; params.C_M = C_M;
+            params.rH_M = rH_M; params.alpha_M = alpha_M;
         end
     end
 end

@@ -28,21 +28,19 @@ p = CR3BPOrbit(orbit_type,center, Nrevs);
 order  = 4;         % Integrators order
 scheme = 2;         % Störmer-Verlet scheme 1 or 2
 
+reg_method = 'Sundman'; % 'Sundman' or 'Russell'
 %% ====================== Propagate Nrevs ======================
 
 % -------------------- SYMPLECTIC INTEGRATOR --------------------
 % Create instance of the symplectic integrator class
-SI_obj = SI(p, order, scheme);  
+SI_obj = SI(p, order, scheme);
 
 % Define propagation parameters
 t0 = 0;                      % Initial time
 tf = Nrevs * p.Tp;           % Final time = Nrevs full orbital periods
 epsilon = 1;%0.05;                 % Step size
 
-% Propagate using symplectic integrator
-params.alpha = 3/2;     % example value for time-regularization parameter
-
-TR_SI = TimeRegularized(SI_obj,'sundman',params);
+TR_SI = TimeRegularized(SI_obj,reg_method);
 TR_SI.propagate(t0, tf, epsilon);
 
 TR_SI.plot_traj_with_drift(font_size = 14,quantity='jacobi')
@@ -52,7 +50,7 @@ TR_SI.plot_traj_with_drift(font_size = 14,quantity='jacobi')
 RK_obj = RK(p, order);
 
 % Propagate using RK integrator
-TR_RK = TimeRegularized(RK_obj,'sundman',params);
+TR_RK = TimeRegularized(RK_obj,reg_method);
 TR_RK.propagate(t0, tf, epsilon);
 
 TR_RK.plot_traj_with_drift(font_size = 14,quantity='jacobi')

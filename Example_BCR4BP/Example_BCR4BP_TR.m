@@ -26,6 +26,8 @@ p = BCR4BPOrbit(orbit_type, center,Nrevs);
 
 order = 4;
 scheme = 2;
+
+reg_method = 'Sundman'; % 'Sundman' or 'Russell'
 %% ====================== Propagate Nrevs ======================
 
 % Define propagation parameters
@@ -51,17 +53,14 @@ ODE_obj.sol = sol_ode;
 % Create instance of the symplectic integrator class
 SI_obj = SI(p, order, scheme);  
 
-% Propagate using symplectic integrator
-params.alpha = 3/2;     % example value for time-regularization parameter
-
-TR_SI = TimeRegularized(SI_obj,'sundman',params);
+TR_SI = TimeRegularized(SI_obj,reg_method);
 TR_SI.propagate(t0, tf, epsilon);
 
 % ------------------------ RUNGE-KUTTA ------------------------
 % Create instance of the Runge-Kutta integrator class
 RK_obj = RK(p, order);
 
-TR_RK = TimeRegularized(RK_obj,'sundman',params);
+TR_RK = TimeRegularized(RK_obj,reg_method);
 TR_RK.propagate(t0, tf, epsilon);
 
 %TR_RK.plot_traj_with_drift(font_size = 14,quantity='hamiltonian')
