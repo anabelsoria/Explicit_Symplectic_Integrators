@@ -212,7 +212,24 @@ classdef BCR4BP < astro.DynamicalSystem
 
             switch scheme
                 case 1 % Stormer-Verlet A
-                    error('Scheme 1 not implemented yet')
+                    p_n2      = zeros(4,1);
+                    p_n2(4)   = p(4) + dt2;
+
+                    dU_n      = obj.partialU(p(4),q(1:3));
+                    p_n2(1:3) = T*( p(1:3) + dt2*dU_n );
+
+                    q_n1      = zeros(4,1);
+                    q_n1(1:3) = T*( D*q(1:3) + dt*(p_n2(1:3) - [0; 1-obj.mu - obj.r2; 0]) );
+                    % q4 split old/new q at the fixed midpoint p_n2(4)
+                    Hp_q      = obj.Hp([q(1:3);   q(4); p_n2]);
+                    Hp_qn1    = obj.Hp([q_n1(1:3); q(4); p_n2]);
+                    q_n1(4)   = q(4) + dt2*Hp_q(end) + dt2*Hp_qn1(end);
+
+                    p_n1      = zeros(4,1);
+                    p_n1(4)   = p_n2(4) + dt2;
+
+                    dU_n1     = obj.partialU(p_n1(4),q_n1(1:3));
+                    p_n1(1:3) = D*p_n2(1:3) + dt2*dU_n1;
 
                 case 2 % Stormer-Verlet B
                     q_n2      = zeros(4,1);
@@ -280,16 +297,26 @@ classdef BCR4BP < astro.DynamicalSystem
         end
 
         function xi = nu2xi(obj,nu)
+            % q4 has no Cartesian counterpart (see xi2nu); xi drops it
+            nu6 = [nu(1:3,:); nu(5:7,:)];
             switch obj.center
                 case 'bary'
-                    xi = obj.P_nu_xi * nu;
+                    xi6 = obj.P_nu_xi * nu6;
                 case 'p2'
-                    xi = obj.P_nu_xi * (nu + [1-obj.mu;0;0;0;0;0]);
-                    xi(1,:) = xi(1,:) - (1-obj.mu);
+                    xi6 = obj.P_nu_xi * (nu6 + [1-obj.mu;0;0;0;0;0]);
+                    xi6(1,:) = xi6(1,:) - (1-obj.mu);
                 case 'p1'
-                    xi = obj.P_nu_xi * (nu + [-obj.mu;0;0;0;0;0]);
-                    xi(1,:) = xi(1,:) - (-obj.mu);
+                    xi6 = obj.P_nu_xi * (nu6 + [-obj.mu;0;0;0;0;0]);
+                    xi6(1,:) = xi6(1,:) - (-obj.mu);
             end
+            theta = obj.theta_0 + obj.theta_dot*nu(8,:);
+            xi = [xi6; theta];
+        end
+
+        function nu = xi2nu(obj,xi)
+            error(['BCR4BP:xi2nu is not implemented. q4 tracks a running ' ...
+                'energy offset not recoverable from an instantaneous ' ...
+                'Cartesian state. Propagate via Hamiltons_EOM/SI_EOM instead.']);
         end
 
     end

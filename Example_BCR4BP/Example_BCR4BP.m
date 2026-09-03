@@ -11,7 +11,7 @@
 %              Controls Group for Distributed and Uncertain Systems (CDUS)
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-clear; clc; close all;
+clear; clc; %close all;
 
 % Add all subfolders of the parent directory to the path
 addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
