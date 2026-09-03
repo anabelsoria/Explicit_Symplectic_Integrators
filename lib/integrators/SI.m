@@ -1,0 +1,149 @@
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+% Author : Anabel Soria-Carro
+% Date   : May 22, 2025
+% Affiliation: The University of Texas at Austin
+%              Controls Group for Distributed and Uncertain Systems (CDUS)
+% Description:
+%  This class defines a symplectic integrator framework with configurable 
+%  order and scheme
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+classdef SI < Integrator
+
+    properties
+        order   % Order of the symplectic integrator (e.g., 2, 3, or 4)
+        scheme  % Scheme selector for equations of motion
+        gamma   % Gamma coefficients specific to the chosen integrator order
+        precision % Arithmetic used per step: 'double', 'ics', 'cs', or 'dd'
+    end
+
+    methods
+
+        function obj = SI(prob,order,scheme,precision)
+            % Constructor for the SI class
+            arguments
+                prob
+                order
+                scheme
+                precision = 'double' % 'double', 'ics' (Kahan), 'cs' (Kahan), or 'dd' (double-double)
+            end
+            obj.name = "SI" + num2str(order);
+            obj.prob     = prob;
+            obj.order = order;
+            obj.scheme = scheme;
+            obj.precision = precision;
+            obj.gamma = obj.generateGamma(order);
+        end
+
+        function gamma = generateGamma(~, order)
+            % Generates the gamma coefficients based on integrator order
+            % These coefficients define the splitting method for time integration
+            switch order
+                case 2
+                    gamma = 1;
+                case 3
+                    s = 1 / (2 - 2^(1/3));
+                    gamma = [s; 1 - 2*s; s];
+                case 4
+                    s = 1 / (4 - 4^(1/3));
+                    gamma = [s; s; 1 - 4*s; s; s];
+                case 6
+                    g = [0.784513610477560; 0.235573213359357; -1.177679984178870];
+                    w0 = 1 - 2 * sum(g);
+                    gamma = [g; w0; flipud(g)];
+                case 8
+                    g = [...
+                        0.74167036435061295344822780;
+                        -0.40910082580003159399730010;
+                        0.19075471029623837995387626;
+                        -0.57386247111608226665638773;
+                        0.29906418130365592384446354;
+                        0.33462491824529818378495798;
+                        0.31529309239676659663205666;
+                        -0.79688793935291635401978884];
+                    gamma = [g; flipud(g(1:end-1))];
+                otherwise
+                    error('Gamma coefficients for order %d not implemented.', order);
+            end
+        end
+
+        function varargout = propagate(obj,t0,tf,dt)
+            % Propagate the system dynamics from t0 to tf using symplectic
+            % integration
+            % Inputs:
+            %   t0   - Initial time
+            %   tf   - Final time
+            %   dt   - Time step
+            % Outputs:
+            %   X     - State history [q; p] over time
+            %   tspan - Time vector
+
+            tspan  = (t0:dt:tf);
+            nt = length(tspan);
+            ns = length(obj.prob.nu0);
+            nq = ns / 2;
+
+            dt = (dt);
+
+            X = (zeros(ns, nt));
+            X(:,1) = obj.prob.nu0;
+            q = (X(1:nq,1)); p = (X(nq+1:end,1));
+
+            precision = lower(obj.precision);
+            if ~strcmp(precision,'double') && obj.scheme ~= 2
+                error('Precision "%s" is only implemented for scheme 2 (Stormer-Verlet B).', precision);
+            end
+
+            switch precision
+                case 'double'
+                case 'ics'
+                    obj.requireMethod('SI_EOM_ICS');
+                    e_x = zeros(nq,1); e_p = zeros(nq,1);
+                case 'cs'
+                    obj.requireMethod('SI_EOM_CS');
+                    e_x2 = zeros(9,1); e_x = zeros(6,1); e_p = zeros(9,1); e_dt2_4 = 0;
+                case 'dd'
+                    obj.requireMethod('SI_EOM_dd');
+                    xl = zeros(nq,1); pl = zeros(nq,1);
+                otherwise
+                    error('Unknown precision "%s". Choose double, ics, cs, or dd.', obj.precision);
+            end
+
+            tic
+            for ii = 2:nt
+                for jj = 1:length(obj.gamma)
+                    switch precision
+                        case 'double'
+                            [q,p] = obj.prob.DS.SI_EOM(obj.gamma(jj)*dt,obj.scheme,[q;p]);
+                        case 'ics'
+                            [q,p,e_x,e_p] = obj.prob.DS.SI_EOM_ICS(dt,obj.gamma(jj),q,p,e_x,e_p);
+                        case 'cs'
+                            [q,p,e_x2,e_x,e_p,e_dt2_4] = obj.prob.DS.SI_EOM_CS(dt,obj.gamma(jj),q,p,e_x2,e_x,e_p,e_dt2_4);
+                        case 'dd'
+                            [q,xl,p,pl] = obj.prob.DS.SI_EOM_dd(dt,obj.gamma(jj),q,xl,p,pl);
+                    end
+                end
+                X(1:nq,ii) = q;
+                X(nq+1:end,ii) = p;
+            end
+            obj.time_solver = toc;
+
+            obj.sol.x = X;
+            obj.sol.t = tspan;
+            obj.sol.Nsteps = length(tspan)/obj.prob.Nrevs;
+            obj.sol.coord = 'hamiltonian';
+
+            if nargout > 0
+                varargout{1} = X;
+                varargout{2} = tspan;
+            end
+        end
+
+        function requireMethod(obj,name)
+            if ~ismethod(obj.prob.DS,name)
+                error('%s has no %s; precision "%s" is only available for classes that implement it.', ...
+                    class(obj.prob.DS), name, obj.precision);
+            end
+        end
+    end
+end

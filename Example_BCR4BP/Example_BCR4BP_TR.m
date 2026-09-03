@@ -6,12 +6,12 @@
 % over several revolutions. 
 %
 % Author: Anabel Soria-Carro 
-% Date:   June 20, 2025
+% Date:   June 26, 2025
 % Affiliation: The University of Texas at Austin
 %              Controls Group for Distributed and Uncertain Systems (CDUS)
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-clear; clc; %close all;
+clear; clc; close all;
 
 % Add all subfolders of the parent directory to the path
 addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
@@ -20,19 +20,20 @@ addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..')))
 
 orbit_type = 'NRHO_3_1';  % Specify orbit type (NRHO_3_1, NRHO_9_2)
 center     = 'p2';
-p = BCR4BPOrbit(orbit_type, center);
+Nrevs = 1;                % Number of revolutions to propagate
 
-Nrevs = 1;          % Number of revolutions to propagate
-Nsteps = 10000;
+p = BCR4BPOrbit(orbit_type, center,Nrevs);
 
 order = 4;
 scheme = 2;
+
+reg_method = 'Sundman'; % 'Sundman' or 'Russell'
 %% ====================== Propagate Nrevs ======================
 
 % Define propagation parameters
 t0 = 0;                      % Initial time
 tf = Nrevs * p.Tp;           % Final time = Nrevs full orbital periods
-dt = p.Tp / Nsteps;          % Step size
+epsilon = 0.05;                 % Step size
 
 % -------------------- ODE --------------------
 opts = odeset('RelTol', 2e-13, 'AbsTol', 1e-13); 
@@ -52,26 +53,28 @@ ODE_obj.sol = sol_ode;
 % Create instance of the symplectic integrator class
 SI_obj = SI(p, order, scheme);  
 
-% Propagate using symplectic integrator
-SI_obj.propagate(t0, tf, dt);
+TR_SI = TimeRegularized(SI_obj,reg_method);
+TR_SI.propagate(t0, tf, epsilon);
 
 % ------------------------ RUNGE-KUTTA ------------------------
 % Create instance of the Runge-Kutta integrator class
 RK_obj = RK(p, order);
 
-% Propagate using RK integrator
-RK_obj.propagate(p.nu0, t0, tf, dt, ...
-                                @(t, x) p.DS.Hamiltons_EOM(t, x));
+TR_RK = TimeRegularized(RK_obj,reg_method);
+TR_RK.propagate(t0, tf, epsilon);
+
+%TR_RK.plot_traj_with_drift(font_size = 14,quantity='hamiltonian')
+
 
 %% ======================== POST-PROCESSING =========================
 
 % ------------------------ Plot Orbits -----------------------------
 ODE_obj.plot_traj(plot_2d_xy=false)                           
-SI_obj.plot_traj(fig = gcf,plot_2d_xy=false)                           
-RK_obj.plot_traj(fig = gcf,plot_2d_xy=false)
+TR_SI.plot_traj(fig = gcf,plot_2d_xy=false)                           
+TR_RK.plot_traj(fig = gcf,plot_2d_xy=false)
 
 % ------------------- Plot Jacobi Constant Drift -------------------
 % Plot the absolute Jacobi Constant difference from the initial value.
 ODE_obj.plot_conserved_quantity(quantity='hamiltonian')                           
-SI_obj.plot_conserved_quantity(fig = gcf,quantity='hamiltonian')
-RK_obj.plot_conserved_quantity(fig = gcf,quantity='hamiltonian')
+TR_SI.plot_conserved_quantity(fig = gcf,quantity='hamiltonian')
+TR_RK.plot_conserved_quantity(fig = gcf,quantity='hamiltonian')
