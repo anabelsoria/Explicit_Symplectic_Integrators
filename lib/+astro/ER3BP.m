@@ -168,7 +168,7 @@ classdef ER3BP < astro.DynamicalSystem
         end
 
 
-        % Precision-ladder kernels.
+        % Precision-option kernels.
         % Shift s = 1-mu-r2 is 0 at bary, 1-mu at p2.
 
         function [q,p,e_q,e_p] = SI_EOM_ICS(obj, dt, phi_l, q, p, e_q, e_p)

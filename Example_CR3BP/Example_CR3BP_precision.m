@@ -1,5 +1,5 @@
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-% Example Script for the SI Precision Ladder
+% Example Script for the SI Precision Options
 %
 % Propagates the same CR3BP orbit with the symplectic integrator's four
 % arithmetic options (double, ICS, CS, dd) and compares their energy drift.

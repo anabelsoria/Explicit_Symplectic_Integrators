@@ -182,7 +182,7 @@ classdef CR3BP < astro.DynamicalSystem
         end
 
 
-        % Precision-ladder kernels for Scheme 2 (Stormer-Verlet B).
+        % Precision-option kernels for Scheme 2 (Stormer-Verlet B).
         % Shift s = 1-mu-r2 is 0 at bary, 1-mu at p2.
 
         function [x_n1,p_n1] = SI_EOM_Expanded(obj, dt, phi_l, x, p)
