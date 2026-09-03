@@ -145,41 +145,5 @@ classdef SI < Integrator
                     class(obj.prob.DS), name, obj.precision);
             end
         end
-
-        function varargout = propagate_mex(obj,t0,tf,dt)
-            
-            tic
-            [X, tspan,coord] = SI_propagate_CR3BP_mex(t0, tf, dt, obj.prob.nu0, ...
-                int32(obj.scheme),  int32(obj.order),obj.prob.DS.mu, obj.prob.DS.r1, obj.prob.DS.r2);
-            obj.time_solver = toc;
-
-            obj.sol.x = X;
-            obj.sol.t = tspan;
-            obj.sol.coord = coord;
-            obj.sol.Nsteps = length(tspan);
-
-            if nargout > 0
-                varargout{1} = X;
-                varargout{2} = tspan;
-            end
-        end
-
-        function varargout = propagate_mex_dd(obj,t0,tf,dt)
-            
-            tic
-            [X, tspan,coord] = SI_propagate_CR3BP_dd_mex(t0, tf, dt, obj.prob.nu0, ...
-                int32(obj.scheme),  int32(obj.order),obj.prob.DS.mu, obj.prob.DS.r1, obj.prob.DS.r2);
-            obj.time_solver = toc;
-
-            obj.sol.x = X;
-            obj.sol.t = tspan;
-            obj.sol.coord = coord;
-            obj.sol.Nsteps = length(tspan);
-
-            if nargout > 0
-                varargout{1} = X;
-                varargout{2} = tspan;
-            end
-        end
     end
 end
